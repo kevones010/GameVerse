@@ -1,0 +1,1 @@
+export const CONFIG={API_KEY:'COLE_AQUI'};
