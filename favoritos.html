@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GameVerse | Favoritos</title>
+    <link rel="stylesheet" href="css/home.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <nav class="navbar">
+          <a href="index.html" class="brand">
+            <span class="brand-mark">G</span>
+            <span>GameVerse</span>
+          </a>
+          <div class="nav-actions">
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="favoritos.html" class="nav-btn active">Favoritos</a>
+          </div>
+        </nav>
+      </header>
+      <main class="home-page">
+        <section class="section-block">
+          <div class="section-heading">
+            <div>
+              <h2>Favoritos</h2>
+              <p>Jogos salvos no seu navegador</p>
+            </div>
+            <span class="chip" id="favoritesCount">0</span>
+          </div>
+          <div class="cards-row" id="favoritesList"></div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="js/favoritos.js"></script>
+  </body>
+</html>

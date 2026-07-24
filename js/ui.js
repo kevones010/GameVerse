@@ -1,4 +1,5 @@
-import { escapeHtml, formatDate, buildYouTubeEmbed } from "./utils.js";
+import { escapeHtml, formatDate, buildYouTubeEmbed, observeLazyImages } from "./utils.js";
+import { DESCRIPTION_BY_SLUG } from "../data/descriptions-pt.js";
 
 export function renderSkeletons() {
   const sections = [
@@ -21,6 +22,16 @@ export function renderSkeletons() {
   });
 }
 
+export function renderError(message) {
+  const hero = document.getElementById("hero");
+  hero.innerHTML = `
+    <div class="error-state">
+      <h2>${escapeHtml(message)}</h2>
+      <p>Erro ao conectar com a RAWG. Tente novamente em instantes.</p>
+    </div>
+  `;
+}
+
 export function renderHeader(game, suggestions = []) {
   const header = document.getElementById("header");
   header.innerHTML = `
@@ -35,7 +46,8 @@ export function renderHeader(game, suggestions = []) {
           <input id="searchInput" type="text" placeholder="Buscar jogos" autocomplete="off" />
         </label>
         <a href="index.html" class="nav-btn">Home</a>
-        <a href="#" class="nav-btn">Favoritos</a>
+        <a href="categorias.html" class="nav-btn">Categorias</a>
+        <a href="favoritos.html" class="nav-btn">Favoritos</a>
         <div class="profile-pill">
           <span class="profile-avatar">G</span>
           <span>Guest</span>
@@ -58,7 +70,7 @@ export function renderHeader(game, suggestions = []) {
 
     const html = suggestions
       .slice(0, 4)
-      .map((item) => `<button class="suggestion-item" data-id="${item.id}">${escapeHtml(item.name)}</button>`)
+      .map((item) => `<button class="suggestion-item" data-id="${item.id}" data-slug="${escapeHtml(item.slug || "")}">${escapeHtml(item.name)}</button>`)
       .join("");
 
     suggestionsBox.innerHTML = html;
@@ -67,11 +79,22 @@ export function renderHeader(game, suggestions = []) {
 
   searchInput.addEventListener("input", updateSuggestions);
   searchInput.addEventListener("focus", updateSuggestions);
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const query = searchInput.value.trim();
+      if (query) {
+        window.location.href = `game.html?slug=${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}`;
+      }
+    }
+  });
   suggestionsBox.addEventListener("click", (event) => {
     const target = event.target.closest(".suggestion-item");
     if (!target) return;
     const id = target.getAttribute("data-id");
-    if (id) {
+    const slug = target.getAttribute("data-slug");
+    if (slug) {
+      window.location.href = `game.html?slug=${encodeURIComponent(slug)}`;
+    } else if (id) {
       window.location.href = `game.html?id=${id}`;
     }
   });
@@ -85,6 +108,8 @@ export function renderHero(game) {
   const hero = document.getElementById("hero");
   const background = game.background_image_additional || game.background_image || "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1600&q=80";
   const poster = game.background_image || game.background_image_additional || "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=800&q=80";
+  const favorites = JSON.parse(localStorage.getItem("gameverse-favorites") || "[]");
+  const isFavorite = favorites.some((item) => item.id === game.id);
 
   hero.innerHTML = `
     <div class="hero-content">
@@ -109,7 +134,7 @@ export function renderHero(game) {
           ${(game.platforms || []).map((platform) => `<span>${escapeHtml(platform.platform.name)}</span>`).join("")}
         </div>
         <div class="hero-actions">
-          <button class="btn btn-primary">★ Favoritar</button>
+          <button class="btn btn-primary favorite-btn" data-id="${game.id}" data-slug="${game.slug}">${isFavorite ? "★ Favoritado" : "★ Favoritar"}</button>
           <button class="btn btn-secondary">↗ Compartilhar</button>
           <button class="btn btn-secondary">▶ Trailer</button>
         </div>
@@ -119,29 +144,45 @@ export function renderHero(game) {
 
   hero.style.backgroundImage = `url(${background})`;
   hero.classList.add("is-visible");
+  requestAnimationFrame(() => {
+    observeLazyImages();
+  });
+
+  hero.querySelector(".favorite-btn")?.addEventListener("click", () => {
+    const favorites = JSON.parse(localStorage.getItem("gameverse-favorites") || "[]");
+    const exists = favorites.some((item) => item.id === game.id);
+    const next = exists ? favorites.filter((item) => item.id !== game.id) : [...favorites, { id: game.id, slug: game.slug }];
+    localStorage.setItem("gameverse-favorites", JSON.stringify(next));
+    renderHero(game);
+  });
 }
 
 export function renderSynopsis(game) {
   const synopsis = document.getElementById("synopsis");
+  const portugueseDescription = DESCRIPTION_BY_SLUG[game.slug];
+  const description = portugueseDescription || game.description_raw || "Descrição ainda não disponível.";
+
   synopsis.innerHTML = `
     <div class="section-heading">
       <h2>Sobre o jogo</h2>
     </div>
-    <p class="synopsis-copy">${escapeHtml(game.description_raw || "Descrição ainda não disponível.")}</p>
+    <p class="synopsis-copy">${escapeHtml(description)}</p>
   `;
 }
 
 export function renderTrailer(trailer, gameName) {
   const trailerSection = document.getElementById("trailer");
+  const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${gameName} official trailer`)}`;
+
   if (!trailer) {
     trailerSection.innerHTML = `
       <div class="section-heading">
         <h2>Trailer</h2>
-        <p>Não há trailer oficial disponível</p>
+        <p>Prévia oficial</p>
       </div>
       <div class="trailer-placeholder">
-        <p>Buscaremos uma prévia no YouTube para ${escapeHtml(gameName)}.</p>
-        <a class="btn btn-secondary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(`${gameName} official trailer`) }" target="_blank" rel="noreferrer">Assistir no YouTube</a>
+        <p>Não foi encontrado um trailer oficial na API neste momento.</p>
+        <a class="btn btn-secondary" href="${youtubeUrl}" target="_blank" rel="noreferrer">Assistir trailer no YouTube</a>
       </div>
     `;
     return;
@@ -219,7 +260,7 @@ export function renderPrices(stores) {
           </div>
           <span class="price-pill">Ver loja</span>
         </div>
-      `).join("") : '<div class="empty-state">Lojas ainda não disponíveis.</div>'}
+      `).join("") : '<div class="empty-state">Preço indisponível</div>'}
     </div>
   `;
 }
@@ -274,7 +315,7 @@ export function renderRating(gameId) {
 
 export function renderAnalysis(gameId) {
   const analysis = document.getElementById("analysis");
-  const savedReview = localStorage.getItem(`gameverse-analysis-${gameId}`) || "";
+  const savedReview = JSON.parse(localStorage.getItem(`gameverse-analysis-${gameId}`) || "null") || { user: "Visitante", date: new Date().toLocaleDateString("pt-BR"), text: "" };
 
   analysis.innerHTML = `
     <div class="section-heading">
@@ -282,8 +323,15 @@ export function renderAnalysis(gameId) {
       <p>Salve sua opinião para este jogo</p>
     </div>
     <form class="analysis-form" id="analysisForm">
-      <textarea class="analysis-textarea" id="analysisText" placeholder="Escreva sua análise...">${escapeHtml(savedReview)}</textarea>
-      <button type="submit" class="btn btn-primary">Publicar análise</button>
+      <div class="analysis-meta">
+        <input class="analysis-input" id="analysisUser" value="${escapeHtml(savedReview.user || "Visitante")}" placeholder="Seu nome" />
+        <span>${escapeHtml(savedReview.date || new Date().toLocaleDateString("pt-BR"))}</span>
+      </div>
+      <textarea class="analysis-textarea" id="analysisText" placeholder="Escreva sua análise...">${escapeHtml(savedReview.text || "")}</textarea>
+      <div class="analysis-actions">
+        <button type="submit" class="btn btn-primary">Salvar análise</button>
+        <button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button>
+      </div>
     </form>
   `;
 
@@ -291,8 +339,15 @@ export function renderAnalysis(gameId) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const value = document.getElementById("analysisText").value;
-    localStorage.setItem(`gameverse-analysis-${gameId}`, value);
+    const user = document.getElementById("analysisUser").value || "Visitante";
+    const payload = { user, date: new Date().toLocaleDateString("pt-BR"), text: value };
+    localStorage.setItem(`gameverse-analysis-${gameId}`, JSON.stringify(payload));
     form.querySelector("button").textContent = "Análise salva";
+  });
+
+  document.getElementById("deleteAnalysis").addEventListener("click", () => {
+    localStorage.removeItem(`gameverse-analysis-${gameId}`);
+    renderAnalysis(gameId);
   });
 }
 
@@ -321,6 +376,10 @@ export function renderSimilar(games) {
     card.addEventListener("click", () => {
       window.location.href = `game.html?id=${card.dataset.id}`;
     });
+  });
+
+  requestAnimationFrame(() => {
+    observeLazyImages();
   });
 }
 

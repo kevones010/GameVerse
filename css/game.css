@@ -1,13 +1,13 @@
 :root {
-  --bg: #0d0d0d;
-  --surface: #161616;
-  --surface-strong: #202020;
-  --accent: #c1121f;
-  --accent-soft: rgba(193, 18, 31, 0.16);
-  --text: #ffffff;
-  --muted: #b7b7b7;
-  --border: rgba(255, 255, 255, 0.08);
-  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --bg: #06070c;
+  --surface: #121622;
+  --surface-strong: #161b2b;
+  --accent: #ff4968;
+  --accent-soft: rgba(255, 73, 104, 0.16);
+  --text: #f4f7ff;
+  --muted: #a8b2c4;
+  --border: rgba(255, 255, 255, 0.12);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -22,9 +22,7 @@ body {
   margin: 0;
   font-family: "Inter", "Segoe UI", Roboto, sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(193, 18, 31, 0.16), transparent 24%),
-    var(--bg);
+  background: radial-gradient(circle at top left, rgba(255, 73, 104, 0.18), transparent 24%), var(--bg);
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -33,7 +31,7 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.02), transparent 60%);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.03), transparent 60%);
   pointer-events: none;
 }
 
@@ -247,7 +245,7 @@ img {
   grid-template-columns: 280px 1fr;
   gap: 1.2rem;
   padding: 1.2rem;
-  background: rgba(18, 18, 18, 0.82);
+  background: rgba(12, 15, 24, 0.82);
   backdrop-filter: blur(30px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1.4rem;
@@ -361,7 +359,7 @@ img {
 .section-card {
   padding: 1.25rem;
   border-radius: 1.35rem;
-  background: linear-gradient(180deg, rgba(24, 24, 24, 0.95), rgba(12, 12, 12, 0.95));
+  background: linear-gradient(180deg, rgba(18, 22, 34, 0.95), rgba(6, 9, 16, 0.95));
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22);
   opacity: 0;

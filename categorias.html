@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GameVerse | Home</title>
+    <title>GameVerse | Categorias</title>
     <link rel="stylesheet" href="css/home.css" />
   </head>
   <body>
@@ -19,8 +19,8 @@
               <span>🔎</span>
               <input id="searchInput" type="text" placeholder="Buscar jogos" autocomplete="off" />
             </label>
-            <a href="index.html" class="nav-btn active">Home</a>
-            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn active">Categorias</a>
             <a href="favoritos.html" class="nav-btn">Favoritos</a>
           </div>
         </nav>
@@ -28,16 +28,20 @@
       </header>
 
       <main class="home-page">
-        <section class="hero-card" id="hero"></section>
-        <section class="section-block" id="launches"></section>
-        <section class="section-block" id="trending"></section>
-        <section class="section-block" id="developerFavorites"></section>
-        <section class="section-block" id="rpg"></section>
-        <section class="section-block" id="action"></section>
-        <section class="section-block" id="indie"></section>
+        <section class="section-block">
+          <div class="section-heading">
+            <div>
+              <h2>Catálogo</h2>
+              <p>Explore jogos por gênero, plataforma e estilo</p>
+            </div>
+          </div>
+          <div class="filter-row" id="filters"></div>
+          <div class="catalog-grid" id="catalogResults"></div>
+          <div class="pagination" id="pagination"></div>
+        </section>
       </main>
     </div>
 
-    <script type="module" src="js/home.js"></script>
+    <script type="module" src="js/categorias.js"></script>
   </body>
 </html>

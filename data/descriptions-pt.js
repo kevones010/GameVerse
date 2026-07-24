@@ -1,0 +1,22 @@
+export const DESCRIPTION_BY_SLUG = {
+  'persona-5-royal': 'Persona 5 Royal é um JRPG cinematográfico sobre um grupo de estudantes que vivem uma dupla vida, enfrentando sombras e reconstruindo a cidade com estilo, humor e emoção.',
+  'metaphor-refantazio': 'Metaphor: ReFantazio é uma aventura de fantasia com tom épico, personagens marcantes e um sistema de combate refinado que une narrativa e estratégia.',
+  'the-legend-of-zelda-breath-of-the-wild': 'The Legend of Zelda: Breath of the Wild redefine a exploração com um mundo aberto livre, puzzles inteligentes e uma sensação de descoberta inesgotável.',
+  'persona-4-golden': 'Persona 4 Golden acompanha um grupo de amigos que investiga mistérios sobrenaturais em Inaba, com forte personalidade, amizade e uma trilha sonora inesquecível.',
+  'final-fantasy-vii-remake': 'Final Fantasy VII Remake reimagina a clássica aventura de Cloud com combate dinâmico, narrativa intensa e uma produção visual impressionante.',
+  'resident-evil-4-remake': 'Resident Evil 4 Remake leva a clássica experiência de survival horror para um novo patamar com tensão, ação e direção de câmera marcante.',
+  'super-mario-odyssey': 'Super Mario Odyssey oferece uma viagem colorida e criativa pelo mundo com plataformas brilhantes, exploração e o icônico Capybara.',
+  'hollow-knight-silksong': 'Hollow Knight: Silksong promete expandir o universo da franquia com um combate refinado, atmosfera intensa e um visual único.',
+  'persona-3-reload': 'Persona 3 Reload traz um drama sobrenatural com personagens carismáticos e uma jornada emocional que se destaca entre os JRPGs modernos.',
+  'pokemon-heartgold': 'Pokémon HeartGold é um RPG de coleção e aventura com nostalgia, batalhas estratégicas e muito charme da geração clássica.',
+  'pokemon-legends-z-a': 'Pokémon Legends Z-A une inovação, exploração e a tradição da franquia em uma nova visão para o universo Pokémon.',
+  'pokemon-legends-arceus': 'Pokémon Legends Arceus reinventa a experiência com um mundo aberto, exploração livre e uma nova perspectiva sobre a região de Hisui.',
+  'super-mario-world': 'Super Mario World é uma aventura clássica de plataforma cheia de criatividade, fases memoráveis e o ritmo que consagrou a franquia.',
+  'yakuza-like-a-dragon': 'Yakuza: Like a Dragon mistura drama, humor e RPG em uma história vibrante que se destaca pela personalidade.',
+  'super-mario-64': 'Super Mario 64 é um marco da plataforma 3D com fases ousadas, design criativo e uma sensação de descoberta revolucionária.',
+  'super-mario-galaxy': 'Super Mario Galaxy leva a experiência a um universo espacial, com giros impressionantes, música marcante e design encantador.',
+  'pokemon-black-2': 'Pokémon Black 2 é um RPG de aventura com estratégia, evolução e uma jornada que valoriza a exploração e a coleção.',
+  'zelda-ocarina-of-time': 'The Legend of Zelda: Ocarina of Time é um clássico da aventura em 3D com temas de coragem, exploração e música memorável.',
+  'hollow-knight': 'Hollow Knight é um metroidvania elegante, sombrio e desafiador, com um mundo rico em detalhes e atmosfera única.',
+  'resident-evil-2-remake': 'Resident Evil 2 Remake recria a experiência de terror com uma narrativa envolvente, ação intensa e direção cinematográfica.'
+};

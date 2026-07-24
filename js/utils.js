@@ -24,10 +24,28 @@ export function buildYouTubeEmbed(videoId) {
   return `https://www.youtube.com/embed/${videoId}`;
 }
 
-export function createSkeleton(container, count = 4) {
-  container.innerHTML = Array.from({ length: count }, () => "<div class='skeleton-card'></div>").join("");
+export function debounce(callback, delay) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = window.setTimeout(() => callback(...args), delay);
+  };
 }
 
-export function setLoadingState(container, isLoading) {
-  container.classList.toggle("is-loading", isLoading);
+export function observeLazyImages() {
+  if (!("IntersectionObserver" in window)) {
+    document.querySelectorAll("img[loading='lazy']").forEach((image) => image.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      }
+    });
+  });
+
+  document.querySelectorAll("img[loading='lazy']").forEach((image) => observer.observe(image));
 }
