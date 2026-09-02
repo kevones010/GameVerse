@@ -126,7 +126,8 @@ export function renderHero(game) {
   cover.src = poster;
   cover.alt = `Poster de ${game.name || "jogo"}`;
   title.textContent = game.name || "Jogo";
-  meta.innerHTML = [game.released ? formatDate(game.released) : "Em breve", game.developers?.[0]?.name, game.publishers?.[0]?.name, Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)} / 5` : null].map((item) => `<span>${escapeHtml(displayValue(item))}</span>`).join("");
+  meta.innerHTML = [game.developers?.[0]?.name, game.publishers?.[0]?.name, game.released ? formatDate(game.released) : "Em breve"].map((item) => escapeHtml(displayValue(item))).join(" <span class=\"meta-separator\">•</span> ");
+  document.getElementById("overview-score").innerHTML = `<strong>${Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)} / 5` : "—"}</strong><span>RAWG</span><strong>${displayNumber(game.metacritic)}</strong><span>Metacritic</span>`;
   genres.innerHTML = (game.genres || []).filter((genre) => genre?.name).map((genre) => `<span>${escapeHtml(genre.name)}</span>`).join("");
   platforms.innerHTML = (game.platforms || []).filter((platform) => platform?.platform?.name).map((platform) => `<span>${escapeHtml(platform.platform.name)}</span>`).join("");
 
@@ -231,11 +232,11 @@ export function renderPrices(stores) {
   `;
 }
 
-export function renderRating(gameId) {
+export function renderRating(gameId, game = {}) {
   const rating = document.getElementById("game-rating");
   const savedRating = Number(localStorage.getItem(`gameverse-rating-${gameId}`) || 0);
 
-  rating.innerHTML = `<div class="stars" id="stars" aria-label="Escolha sua nota"></div><p class="rating-help">Sua nota: <strong>${savedRating ? `${savedRating}/5` : "—"}</strong></p>`;
+  rating.innerHTML = `<div class="rating-summary"><strong>${Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)} / 5` : "—"}</strong><span>RAWG · ${displayNumber(game.ratings_count)} avaliações</span></div><div class="stars" id="stars" aria-label="Escolha sua nota"></div><p class="rating-help">Sua nota: <strong>${savedRating ? `${savedRating}/5` : "—"}</strong></p>`;
 
   const starsContainer = document.getElementById("stars");
   const buttons = [];
@@ -261,7 +262,7 @@ export function renderRating(gameId) {
     button.addEventListener("click", () => {
       const value = index + 1;
       localStorage.setItem(`gameverse-rating-${gameId}`, String(value));
-      renderRating(gameId);
+      renderRating(gameId, game);
     });
 
     buttons.push(button);
@@ -276,6 +277,20 @@ export function renderRating(gameId) {
 export function renderAnalysis(gameId) {
   const analysis = document.getElementById("game-review");
   const savedReview = JSON.parse(localStorage.getItem(`gameverse-analysis-${gameId}`) || "null") || { user: "Visitante", date: new Date().toLocaleDateString("pt-BR"), text: "" };
+
+  if (savedReview.text) {
+    analysis.innerHTML = `<article class="review-card"><div class="review-author"><span class="review-avatar">G</span><div><strong>${escapeHtml(savedReview.user || "Visitante")}</strong><span>${escapeHtml(savedReview.date || "")}</span></div></div><p>${escapeHtml(savedReview.text)}</p><div class="analysis-actions"><button type="button" class="btn btn-secondary" id="editAnalysis">Editar</button><button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button></div></article>`;
+    document.getElementById("editAnalysis").addEventListener("click", () => {
+      localStorage.setItem(`gameverse-analysis-editing-${gameId}`, "true");
+      renderAnalysis(gameId);
+    });
+    document.getElementById("deleteAnalysis").addEventListener("click", () => {
+      localStorage.removeItem(`gameverse-analysis-${gameId}`);
+      renderAnalysis(gameId);
+    });
+    if (!localStorage.getItem(`gameverse-analysis-editing-${gameId}`)) return;
+    localStorage.removeItem(`gameverse-analysis-editing-${gameId}`);
+  }
 
   analysis.innerHTML = `<form class="analysis-form" id="analysisForm">
       <div class="analysis-meta">
@@ -296,7 +311,7 @@ export function renderAnalysis(gameId) {
     const user = document.getElementById("analysisUser").value || "Visitante";
     const payload = { user, date: new Date().toLocaleDateString("pt-BR"), text: value };
     localStorage.setItem(`gameverse-analysis-${gameId}`, JSON.stringify(payload));
-    form.querySelector("button").textContent = "Análise salva";
+    renderAnalysis(gameId);
   });
 
   document.getElementById("deleteAnalysis").addEventListener("click", () => {

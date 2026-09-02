@@ -89,9 +89,9 @@ async function loadGamePage() {
     renderScreenshots(screenshots);
     renderInfo(game);
     renderPrices(stores.length ? stores : []);
-    renderRating(game.id);
+    renderRating(game.id, game);
     renderAnalysis(game.id);
-    renderSimilar(similar.filter((item) => item.id !== game.id).slice(0, 8));
+    renderSimilar(similar.filter((item) => item.id !== game.id && item.slug !== game.slug).slice(0, 8));
     renderFooter();
 
     const searchInput = document.getElementById("searchInput");

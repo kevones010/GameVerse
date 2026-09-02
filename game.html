@@ -12,18 +12,19 @@
 
       <main class="game-page">
         <section class="hero-section" id="hero" aria-labelledby="game-title">
-          <div class="game-overview">
-            <img id="game-cover" class="hero-poster" src="" alt="" />
-            <div class="overview-details">
-              <h1 id="game-title"></h1>
-              <div id="game-meta" class="hero-meta"></div>
-              <div id="game-genres" class="hero-tags"></div>
-              <div id="game-platforms" class="hero-tags"></div>
-              <div class="hero-actions">
-                <button id="favoriteButton" class="btn btn-primary favorite-btn" type="button">★ Favoritar</button>
-                <button id="shareButton" class="btn btn-secondary" type="button">↗ Compartilhar</button>
-                <button id="trailerButton" class="btn btn-secondary" type="button">▶ Trailer</button>
-              </div>
+        </section>
+        <section class="game-overview" aria-labelledby="game-title">
+          <img id="game-cover" class="hero-poster" src="" alt="" />
+          <div class="overview-details">
+            <h1 id="game-title"></h1>
+            <div id="game-meta" class="overview-meta"></div>
+            <div class="overview-score" id="overview-score"></div>
+            <div class="overview-group"><span class="overview-label">Gêneros</span><div id="game-genres" class="hero-tags"></div></div>
+            <div class="overview-group"><span class="overview-label">Plataformas</span><div id="game-platforms" class="hero-tags"></div></div>
+            <div class="hero-actions">
+              <button id="favoriteButton" class="btn btn-primary favorite-btn" type="button">★ Favoritar</button>
+              <button id="shareButton" class="btn btn-secondary" type="button">↗ Compartilhar</button>
+              <button id="trailerButton" class="btn btn-secondary" type="button">▶ Trailer</button>
             </div>
           </div>
         </section>
@@ -39,7 +40,7 @@
 
           <aside class="side-column">
             <section class="section-card" id="info"><div class="section-heading"><h3>Informações</h3></div><div id="game-info" class="info-grid"></div></section>
-            <section class="section-card" id="prices"><div class="section-heading"><h3>Preço / Lojas</h3></div><div id="game-prices" class="prices-grid"></div></section>
+            <section class="section-card" id="prices"><div class="section-heading"><h3>Onde encontrar</h3></div><div id="game-prices" class="prices-grid"></div></section>
             <section class="section-card" id="rating"><div class="section-heading"><h3>Sua avaliação</h3></div><div id="game-rating"></div></section>
           </aside>
         </div>

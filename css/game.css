@@ -9,17 +9,27 @@
   --border: rgba(255, 255, 255, 0.12);
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
 }
+.hero-card-title { font-size: clamp(2rem, 3.5vw, 2.5rem); }
 
 * {
   box-sizing: border-box;
 }
+.screenshot-card:first-child { min-width: 40%; }
 
 html {
   scroll-behavior: smooth;
 }
+.review-card { display: grid; gap: 1rem; }
+.review-card p { margin: 0; line-height: 1.7; color: #e6e6e6; }
+.review-author { display: flex; align-items: center; gap: 0.75rem; }
+.review-author div { display: grid; gap: 0.2rem; }
+.review-author span:last-child { color: var(--muted); font-size: 0.85rem; }
+.review-avatar { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%; background: var(--accent); font-weight: 700; }
 
 body {
   margin: 0;
+  max-width: 72ch;
+  font-size: 1rem;
   font-family: "Inter", "Segoe UI", Roboto, sans-serif;
   color: var(--text);
   background: radial-gradient(circle at top left, rgba(255, 73, 104, 0.18), transparent 24%), var(--bg);
@@ -138,7 +148,7 @@ img {
 .profile-pill {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.35rem;
   padding: 0.55rem 0.8rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
@@ -163,7 +173,7 @@ img {
 
 .hero-section {
   position: relative;
-  min-height: 560px;
+  height: 480px;
   border-radius: 2rem;
   overflow: hidden;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.38);
@@ -184,7 +194,7 @@ img {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(13, 13, 13, 0.9) 0%, rgba(13, 13, 13, 0.45) 55%, rgba(13, 13, 13, 0.8) 100%);
+  background: linear-gradient(90deg, rgba(7, 8, 12, 0.72), rgba(7, 8, 12, 0.2) 48%, rgba(7, 8, 12, 0.72)), linear-gradient(0deg, rgba(7, 8, 12, 0.96), transparent 58%);
   z-index: 1;
 }
 
@@ -192,43 +202,39 @@ img {
   content: "";
   position: absolute;
   inset: -25%;
-  backdrop-filter: blur(8px);
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.04), transparent 50%);
+  background: linear-gradient(120deg, rgba(120, 10, 25, 0.16), transparent 52%);
   transform: scale(1.08);
   pointer-events: none;
 }
 
 .game-overview {
-  position: absolute;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-  bottom: -2rem;
-  z-index: 3;
-  width: min(920px, calc(100% - 4rem));
+  position: relative;
+  margin: -120px auto 32px;
+  z-index: 5;
+  width: calc(100% - 64px);
+  max-width: 1180px;
   display: grid;
   grid-template-columns: 250px 1fr;
   gap: 1.2rem;
   padding: 1.2rem;
-  background: rgba(12, 15, 24, 0.82);
-  backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1.4rem;
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+  background: rgba(16, 18, 26, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.42);
 }
 
 .hero-poster {
    width: 250px;
    aspect-ratio: 2 / 3;
-  border-radius: 1rem;
+  border-radius: 16px;
   height: auto;
   object-fit: cover;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hero-poster:hover {
-  transform: scale(1.015);
+  transform: translateY(-4px);
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.32);
 }
 
@@ -243,19 +249,20 @@ img {
   margin: 0;
 }
 
-.hero-meta {
+.overview-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
   color: var(--muted);
-  font-size: 0.96rem;
+  font-size: 1rem;
 }
 
-.hero-meta span {
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-}
+.meta-separator { color: var(--accent); }
+.overview-score { display: flex; align-items: baseline; gap: 0.55rem; color: var(--muted); }
+.overview-score strong { color: var(--text); font-size: 1.15rem; }
+.overview-score span { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.overview-group { display: grid; gap: 0.45rem; }
+.overview-label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
 .hero-tags {
   display: flex;
@@ -311,7 +318,9 @@ img {
 
 .content-grid {
   display: grid;
-  grid-template-columns: 1.6fr 0.9fr;
+  max-width: 1180px;
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 1.25rem;
 }
 
@@ -323,14 +332,31 @@ img {
 }
 
 .section-card {
-  padding: 1.25rem;
-  border-radius: 1.35rem;
-  background: linear-gradient(180deg, rgba(18, 22, 34, 0.95), rgba(6, 9, 16, 0.95));
+  padding: 1.75rem;
+  border-radius: 18px;
+  background: rgba(17, 20, 29, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22);
   opacity: 0;
   transform: translateY(14px);
   animation: fadeSlideIn 0.55s ease forwards;
+}
+
+.section-card h2,
+.section-card h3 {
+  position: relative;
+}
+
+.section-card h2::before,
+.section-card h3::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 1.1em;
+  margin-right: 0.65rem;
+  vertical-align: -0.15em;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 @keyframes fadeSlideIn {
@@ -432,15 +458,12 @@ img {
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 0;
 }
 
 .info-item {
-  padding: 0.85rem 0.95rem;
-  border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .info-item strong {
@@ -501,8 +524,8 @@ img {
 }
 
 .star-btn {
-  width: 3rem;
-  height: 3rem;
+  width: 3.2rem;
+  height: 3.2rem;
   border: 0;
   background: transparent;
   color: #6d6d6d;
@@ -615,12 +638,13 @@ img {
   .game-overview {
     position: static;
     transform: none;
-    margin-top: 1rem;
-    width: 100%;
+    margin: -80px 24px 28px;
+    width: calc(100% - 48px);
+    grid-template-columns: 190px minmax(0, 1fr);
   }
 
   .hero-section {
-    min-height: auto;
+    height: 430px;
   }
 }
 
@@ -644,11 +668,13 @@ img {
   }
 
   .hero-section {
-    min-height: auto;
+    height: 280px;
   }
 
   .game-overview {
     grid-template-columns: 1fr;
+    margin: -40px 16px 24px;
+    width: calc(100% - 32px);
     padding: 1rem;
   }
 
