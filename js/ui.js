@@ -26,20 +26,17 @@ export function renderSkeletons() {
 
   sections.forEach((section) => {
     if (section) {
-      section.innerHTML = `<div class="skeleton-block"></div>`;
       section.classList.add("is-loading");
     }
   });
 }
 
 export function renderError(message) {
-  const hero = document.getElementById("hero");
-  hero.innerHTML = `
-    <div class="error-state">
-      <h2>${escapeHtml(message)}</h2>
-      <p>Erro ao conectar com a RAWG. Tente novamente em instantes.</p>
-    </div>
-  `;
+  const title = document.getElementById("game-title");
+  const description = document.getElementById("game-description");
+  title.textContent = message;
+  description.textContent = "Não foi possível carregar este jogo.";
+  description.insertAdjacentHTML("afterend", '<div class="error-actions"><button class="btn btn-secondary" type="button" onclick="location.reload()">Tentar novamente</button> <a class="btn btn-primary" href="index.html">Voltar para Home</a></div>');
 }
 
 export function renderHeader(game, suggestions = []) {
@@ -121,31 +118,17 @@ export function renderHero(game) {
   const favorites = JSON.parse(localStorage.getItem("gameverse-favorites") || "[]");
   const isFavorite = favorites.some((item) => item.id === game.id);
 
-  hero.innerHTML = `
-    <article class="hero-floating-card">
-      <img class="hero-poster" src="${poster}" alt="Poster de ${escapeHtml(game.name || "jogo")}" loading="lazy" />
-      <div class="hero-card-body">
-        <h1 class="hero-card-title">${escapeHtml(game.name || "Jogo")}</h1>
-        <div class="hero-meta">
-          <span>${game.released ? formatDate(game.released) : "—"}</span>
-          <span>${escapeHtml(displayValue(game.developers?.[0]?.name))}</span>
-          <span>${escapeHtml(displayValue(game.publishers?.[0]?.name))}</span>
-          <span>${Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)} / 5` : "—"}</span>
-        </div>
-        <div class="hero-tags">
-          ${(game.genres || []).filter((genre) => genre?.name).map((genre) => `<span>${escapeHtml(genre.name)}</span>`).join("")}
-        </div>
-        <div class="hero-tags">
-          ${(game.platforms || []).filter((platform) => platform?.platform?.name).map((platform) => `<span>${escapeHtml(platform.platform.name)}</span>`).join("")}
-        </div>
-        <div class="hero-actions">
-          <button class="btn btn-primary favorite-btn" data-id="${game.id}" data-slug="${game.slug}">${isFavorite ? "★ Favoritado" : "★ Favoritar"}</button>
-          <button class="btn btn-secondary">↗ Compartilhar</button>
-          <button class="btn btn-secondary">▶ Trailer</button>
-        </div>
-      </div>
-    </article>
-  `;
+  const cover = document.getElementById("game-cover");
+  const title = document.getElementById("game-title");
+  const meta = document.getElementById("game-meta");
+  const genres = document.getElementById("game-genres");
+  const platforms = document.getElementById("game-platforms");
+  cover.src = poster;
+  cover.alt = `Poster de ${game.name || "jogo"}`;
+  title.textContent = game.name || "Jogo";
+  meta.innerHTML = [game.released ? formatDate(game.released) : "Em breve", game.developers?.[0]?.name, game.publishers?.[0]?.name, Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)} / 5` : null].map((item) => `<span>${escapeHtml(displayValue(item))}</span>`).join("");
+  genres.innerHTML = (game.genres || []).filter((genre) => genre?.name).map((genre) => `<span>${escapeHtml(genre.name)}</span>`).join("");
+  platforms.innerHTML = (game.platforms || []).filter((platform) => platform?.platform?.name).map((platform) => `<span>${escapeHtml(platform.platform.name)}</span>`).join("");
 
   hero.style.backgroundImage = `url(${background})`;
   hero.classList.add("is-visible");
@@ -153,13 +136,19 @@ export function renderHero(game) {
     observeLazyImages();
   });
 
-  hero.querySelector(".favorite-btn")?.addEventListener("click", () => {
+  const favoriteButton = document.getElementById("favoriteButton");
+  favoriteButton.textContent = isFavorite ? "★ Favoritado" : "★ Favoritar";
+  favoriteButton.onclick = () => {
     const favorites = JSON.parse(localStorage.getItem("gameverse-favorites") || "[]");
     const exists = favorites.some((item) => item.id === game.id);
     const next = exists ? favorites.filter((item) => item.id !== game.id) : [...favorites, { id: game.id, slug: game.slug }];
     localStorage.setItem("gameverse-favorites", JSON.stringify(next));
     renderHero(game);
-  });
+  };
+  document.getElementById("shareButton").onclick = async () => {
+    await navigator.clipboard?.writeText(window.location.href);
+  };
+  document.getElementById("trailerButton").onclick = () => document.getElementById("trailer").scrollIntoView({ behavior: "smooth" });
 }
 
 export function renderSynopsis(game) {
@@ -167,69 +156,41 @@ export function renderSynopsis(game) {
   const portugueseDescription = DESCRIPTION_BY_SLUG[game.slug];
   const description = portugueseDescription || game.description_raw || "Descrição ainda não disponível.";
 
-  synopsis.innerHTML = `
-    <div class="section-heading">
-      <h2>Sobre o jogo</h2>
-    </div>
-    <p class="synopsis-copy">${escapeHtml(description)}</p>
-  `;
+  document.getElementById("game-description").textContent = description.replace(/<[^>]*>/g, "");
 }
 
 export function renderTrailer(trailer, gameName) {
-  const trailerSection = document.getElementById("trailer");
+  const trailerSection = document.getElementById("game-trailer");
   const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${gameName} official trailer`)}`;
 
   if (!trailer) {
     trailerSection.innerHTML = `
-      <div class="section-heading">
-        <h2>Trailer</h2>
-        <p>Prévia oficial</p>
-      </div>
       <div class="trailer-placeholder">
-        <p>Não foi encontrado um trailer oficial na API neste momento.</p>
-        <a class="btn btn-secondary" href="${youtubeUrl}" target="_blank" rel="noreferrer">Assistir trailer no YouTube</a>
+        <p>Trailer não encontrado na RAWG.</p>
+        <a class="btn btn-secondary" href="${youtubeUrl}" target="_blank" rel="noreferrer">Assistir no YouTube</a>
       </div>
     `;
     return;
   }
 
-  trailerSection.innerHTML = `
-    <div class="section-heading">
-      <h2>Trailer</h2>
-      <p>Prévia oficial</p>
-    </div>
-    <div class="video-frame">
+  trailerSection.innerHTML = `<div class="video-frame">
       <iframe src="${buildYouTubeEmbed(trailer.data?.[0]?.youtube_id || trailer.video_id || trailer.id)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
   `;
 }
 
 export function renderScreenshots(screenshots) {
-  const screenshotsSection = document.getElementById("screenshots");
+  const screenshotsSection = document.getElementById("game-screenshots");
   if (!screenshots.length) {
-    screenshotsSection.innerHTML = `
-      <div class="section-heading">
-        <h2>Screenshots</h2>
-        <p>Capturas da experiência</p>
-      </div>
-      <div class="empty-state">Screenshots indisponíveis.</div>
-    `;
+    screenshotsSection.innerHTML = `<div class="empty-state">Screenshots indisponíveis.</div>`;
     return;
   }
 
-  screenshotsSection.innerHTML = `
-    <div class="section-heading">
-      <h2>Screenshots</h2>
-      <p>Capturas da experiência</p>
-    </div>
-    <div class="screenshot-list">
-      ${screenshots.slice(0, 8).map((shot) => `
+  screenshotsSection.innerHTML = screenshots.slice(0, 6).map((shot) => `
         <article class="screenshot-card" data-image="${shot.image}">
           <img src="${shot.image}" alt="Screenshot" loading="lazy" />
         </article>
-      `).join("")}
-    </div>
-  `;
+      `).join("");
 
   screenshotsSection.querySelectorAll(".screenshot-card").forEach((card) => {
     card.addEventListener("click", () => {
@@ -242,12 +203,8 @@ export function renderScreenshots(screenshots) {
 }
 
 export function renderInfo(game) {
-  const info = document.getElementById("info");
+  const info = document.getElementById("game-info");
   info.innerHTML = `
-    <div class="section-heading">
-      <h3>Informações</h3>
-    </div>
-    <div class="info-grid">
       <div class="info-item"><strong>Data</strong><span>${game.released ? formatDate(game.released) : "—"}</span></div>
       <div class="info-item"><strong>Publisher</strong><span>${escapeHtml(displayValue(game.publishers?.[0]?.name))}</span></div>
       <div class="info-item"><strong>Developer</strong><span>${escapeHtml(displayValue(game.developers?.[0]?.name))}</span></div>
@@ -256,18 +213,12 @@ export function renderInfo(game) {
       <div class="info-item"><strong>RAWG Rating</strong><span>${Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)}/5` : "—"}</span></div>
       <div class="info-item"><strong>ESRB</strong><span>${escapeHtml(displayValue(game.esrb_rating?.name))}</span></div>
       <div class="info-item"><strong>Avaliações</strong><span>${displayNumber(game.ratings_count)}</span></div>
-    </div>
   `;
 }
 
 export function renderPrices(stores) {
-  const prices = document.getElementById("prices");
+  const prices = document.getElementById("game-prices");
   prices.innerHTML = `
-    <div class="section-heading">
-      <h3>Preço</h3>
-      <p>Disponível em lojas</p>
-    </div>
-    <div class="prices-grid">
       ${stores.length ? stores.map((store) => `
         <div class="price-card">
           <div>
@@ -277,21 +228,14 @@ export function renderPrices(stores) {
           <span class="price-pill">Ver loja</span>
         </div>
       `).join("") : '<div class="empty-state">Preço indisponível</div>'}
-    </div>
   `;
 }
 
 export function renderRating(gameId) {
-  const rating = document.getElementById("rating");
+  const rating = document.getElementById("game-rating");
   const savedRating = Number(localStorage.getItem(`gameverse-rating-${gameId}`) || 0);
 
-  rating.innerHTML = `
-    <div class="section-heading">
-      <h3>Avaliação do usuário</h3>
-    </div>
-    <div class="stars" id="stars"></div>
-    <p class="rating-help">Sua nota: <strong>${savedRating ? "★".repeat(savedRating) : "—"}</strong></p>
-  `;
+  rating.innerHTML = `<div class="stars" id="stars" aria-label="Escolha sua nota"></div><p class="rating-help">Sua nota: <strong>${savedRating ? `${savedRating}/5` : "—"}</strong></p>`;
 
   const starsContainer = document.getElementById("stars");
   const buttons = [];
@@ -330,15 +274,10 @@ export function renderRating(gameId) {
 }
 
 export function renderAnalysis(gameId) {
-  const analysis = document.getElementById("analysis");
+  const analysis = document.getElementById("game-review");
   const savedReview = JSON.parse(localStorage.getItem(`gameverse-analysis-${gameId}`) || "null") || { user: "Visitante", date: new Date().toLocaleDateString("pt-BR"), text: "" };
 
-  analysis.innerHTML = `
-    <div class="section-heading">
-      <h2>Análise</h2>
-      <p>Salve sua opinião para este jogo</p>
-    </div>
-    <form class="analysis-form" id="analysisForm">
+  analysis.innerHTML = `<form class="analysis-form" id="analysisForm">
       <div class="analysis-meta">
         <input class="analysis-input" id="analysisUser" value="${escapeHtml(savedReview.user || "Visitante")}" placeholder="Seu nome" />
         <span>${escapeHtml(savedReview.date || new Date().toLocaleDateString("pt-BR"))}</span>
@@ -348,8 +287,7 @@ export function renderAnalysis(gameId) {
         <button type="submit" class="btn btn-primary">Salvar análise</button>
         <button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button>
       </div>
-    </form>
-  `;
+    </form>`;
 
   const form = document.getElementById("analysisForm");
   form.addEventListener("submit", (event) => {
@@ -368,21 +306,13 @@ export function renderAnalysis(gameId) {
 }
 
 export function renderSimilar(games) {
-  const similar = document.getElementById("similar");
+  const similar = document.getElementById("game-related");
   const uniqueGames = [...new Map(games.filter((game) => game?.id).map((game) => [game.id, game])).values()];
   if (!uniqueGames.length) {
-    similar.innerHTML = "";
-    similar.style.display = "none";
+    similar.innerHTML = '<div class="empty-state">Nenhum jogo semelhante encontrado.</div>';
     return;
   }
-
-  similar.style.display = "";
   similar.innerHTML = `
-    <div class="section-heading">
-      <h2>Jogos similares</h2>
-      <p>Explore mais experiências</p>
-    </div>
-    <div class="similar-list">
       ${uniqueGames.slice(0, 8).map((game) => `
         <article class="similar-card" data-id="${game.id}" data-slug="${escapeHtml(game.slug || "")}">
           <img src="${game.background_image || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"}" alt="${escapeHtml(game.name)}" loading="lazy" />
@@ -393,7 +323,6 @@ export function renderSimilar(games) {
           </div>
         </article>
       `).join("")}
-    </div>
   `;
 
   similar.querySelectorAll(".similar-card").forEach((card) => {

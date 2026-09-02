@@ -11,21 +11,36 @@
       <header class="topbar" id="header"></header>
 
       <main class="game-page">
-        <section class="hero-section" id="hero"></section>
+        <section class="hero-section" id="hero" aria-labelledby="game-title">
+          <div class="game-overview">
+            <img id="game-cover" class="hero-poster" src="" alt="" />
+            <div class="overview-details">
+              <h1 id="game-title"></h1>
+              <div id="game-meta" class="hero-meta"></div>
+              <div id="game-genres" class="hero-tags"></div>
+              <div id="game-platforms" class="hero-tags"></div>
+              <div class="hero-actions">
+                <button id="favoriteButton" class="btn btn-primary favorite-btn" type="button">★ Favoritar</button>
+                <button id="shareButton" class="btn btn-secondary" type="button">↗ Compartilhar</button>
+                <button id="trailerButton" class="btn btn-secondary" type="button">▶ Trailer</button>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <div class="content-grid">
           <div class="main-column">
-            <section class="section-card" id="synopsis"></section>
-            <section class="section-card" id="trailer"></section>
-            <section class="section-card" id="screenshots"></section>
-            <section class="section-card" id="analysis"></section>
-            <section class="section-card" id="similar"></section>
+            <section class="section-card" id="synopsis"><div class="section-heading"><h2>Sobre o jogo</h2></div><p id="game-description" class="synopsis-copy"></p></section>
+            <section class="section-card" id="trailer"><div class="section-heading"><h2>Trailer</h2><p>Prévia oficial</p></div><div id="game-trailer"></div></section>
+            <section class="section-card" id="screenshots"><div class="section-heading"><h2>Galeria</h2><p>Capturas da experiência</p></div><div id="game-screenshots" class="screenshot-list"></div></section>
+            <section class="section-card" id="analysis"><div class="section-heading"><h2>Sua análise</h2><p>Registre sua opinião sobre este jogo.</p></div><div id="game-review"></div></section>
+            <section class="section-card" id="similar"><div class="section-heading"><h2>Você também pode gostar</h2><p>Explore mais experiências</p></div><div id="game-related" class="similar-list"></div></section>
           </div>
 
           <aside class="side-column">
-            <section class="section-card" id="info"></section>
-            <section class="section-card" id="prices"></section>
-            <section class="section-card" id="rating"></section>
+            <section class="section-card" id="info"><div class="section-heading"><h3>Informações</h3></div><div id="game-info" class="info-grid"></div></section>
+            <section class="section-card" id="prices"><div class="section-heading"><h3>Preço / Lojas</h3></div><div id="game-prices" class="prices-grid"></div></section>
+            <section class="section-card" id="rating"><div class="section-heading"><h3>Sua avaliação</h3></div><div id="game-rating"></div></section>
           </aside>
         </div>
       </main>
