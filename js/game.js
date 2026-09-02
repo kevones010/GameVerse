@@ -86,11 +86,7 @@ async function loadGamePage() {
     renderHero(game);
     renderSynopsis(game);
     renderTrailer(trailer, game.name);
-    if (screenshots.length) {
-      renderScreenshots(screenshots);
-    } else {
-      document.getElementById("screenshots").style.display = "none";
-    }
+    renderScreenshots(screenshots);
     renderInfo(game);
     renderPrices(stores.length ? stores : []);
     renderRating(game.id);
