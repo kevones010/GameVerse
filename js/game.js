@@ -63,12 +63,14 @@ async function loadGamePage() {
     const results = await Promise.allSettled([
       Promise.resolve(getCachedValue(`screenshots:${game.id}`) || getScreenshots(game.id)),
       Promise.resolve(getCachedValue(`trailer:${game.id}`) || getTrailer(game.id)),
-      Promise.resolve(getCachedValue(`stores:${game.id}`) || getStores(game.id))
+      Promise.resolve(getCachedValue(`stores:${game.id}`) || getStores(game.id)),
+      getSuggestions(game.name)
     ]);
 
     const screenshots = results[0].status === "fulfilled" ? results[0].value : [];
     const trailer = results[1].status === "fulfilled" ? results[1].value : null;
     const stores = results[2].status === "fulfilled" ? results[2].value : [];
+    const similar = results[3].status === "fulfilled" ? results[3].value : [];
 
     if (results[0].status === "fulfilled" && screenshots.length) {
       setCache(`screenshots:${game.id}`, screenshots);
@@ -93,7 +95,7 @@ async function loadGamePage() {
     renderPrices(stores.length ? stores : []);
     renderRating(game.id);
     renderAnalysis(game.id);
-    renderSimilar([]);
+    renderSimilar(similar.filter((item) => item.id !== game.id).slice(0, 8));
     renderFooter();
 
     const searchInput = document.getElementById("searchInput");

@@ -1,19 +1,22 @@
 import { getGamesList } from './services/rawgService.js';
+import { escapeHtml, sortByRelevance } from './utils.js';
 
 const FILTERS = [
-  { label: 'Todos', value: '' },
-  { label: 'RPG/JRPG', value: '5' },
-  { label: 'Ação', value: '4' },
-  { label: 'Indies', value: '51' },
-  { label: 'Aventura', value: '7' },
-  { label: 'Terror', value: '40' },
-  { label: 'Nintendo', value: '7' },
-  { label: 'PlayStation', value: '2' },
-  { label: 'PC', value: '4' }
+  { label: 'Todos', key: 'genres', value: '' },
+  { label: 'RPG/JRPG', key: 'genres', value: '5' },
+  { label: 'Ação', key: 'genres', value: '4' },
+  { label: 'Indies', key: 'genres', value: '51' },
+  { label: 'Aventura', key: 'genres', value: '7' },
+  { label: 'Terror', key: 'genres', value: '40' },
+  { label: 'Nintendo', key: 'platforms', value: '7' },
+  { label: 'PlayStation', key: 'platforms', value: '2' },
+  { label: 'PC', key: 'platforms', value: '1' }
 ];
 
 let currentPage = 1;
 let currentGenre = '';
+let currentFilterKey = 'genres';
+let currentOrdering = 'relevance';
 
 function openGame(id, slug) {
   const target = slug ? `game.html?slug=${encodeURIComponent(slug)}` : `game.html?id=${id}`;
@@ -29,7 +32,7 @@ function createCatalogCard(game) {
         <img src="${game.background_image || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80'}" alt="${game.name}" loading="lazy" />
       </div>
       <div class="card-body">
-        <h3>${game.name}</h3>
+        <h3>${escapeHtml(game.name)}</h3>
         <div class="meta">
           <span>${year}</span>
           <span>${rating}</span>
@@ -44,13 +47,25 @@ async function loadCatalog() {
   const pagination = document.getElementById('pagination');
   resultsContainer.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
 
-  const results = await getGamesList({ genres: currentGenre, ordering: '-rating', page: currentPage, page_size: 12 });
-  resultsContainer.innerHTML = results.length ? results.map(createCatalogCard).join('') : '<div class="empty-state">Nenhum resultado encontrado.</div>';
-  pagination.innerHTML = `
-    <button class="pagination-btn" data-page="${Math.max(1, currentPage - 1)}">Anterior</button>
-    <span>Página ${currentPage}</span>
-    <button class="pagination-btn" data-page="${currentPage + 1}">Próxima</button>
-  `;
+  try {
+    const ordering = currentOrdering === 'relevance' ? '-added' : currentOrdering;
+    const params = { ordering, page: currentPage, page_size: 12 };
+    if (currentGenre) params[currentFilterKey] = currentGenre;
+    const results = await getGamesList(params);
+    const orderedResults = currentOrdering === 'relevance' ? sortByRelevance(results) : results;
+    resultsContainer.innerHTML = orderedResults.length ? orderedResults.map(createCatalogCard).join('') : '<div class="empty-state">Nenhum resultado encontrado.</div>';
+    pagination.innerHTML = `
+      <button class="pagination-btn" data-page="${Math.max(1, currentPage - 1)}">Anterior</button>
+      <span>Página ${currentPage}</span>
+      <button class="pagination-btn" data-page="${currentPage + 1}">Próxima</button>
+    `;
+  } catch (error) {
+    console.error('Falha ao carregar o catálogo.', error);
+    resultsContainer.innerHTML = '<div class="empty-state">Não foi possível carregar esta seção. <button class="btn btn-secondary" id="retryCatalog">Tentar novamente</button></div>';
+    pagination.innerHTML = '';
+    document.getElementById('retryCatalog')?.addEventListener('click', loadCatalog);
+    return;
+  }
 
   resultsContainer.querySelectorAll('.card').forEach((card) => {
     card.addEventListener('click', () => openGame(card.dataset.id, card.dataset.slug));
@@ -67,16 +82,28 @@ async function loadCatalog() {
 function renderFilters() {
   const filters = document.getElementById('filters');
   filters.innerHTML = FILTERS.map((filter) => `
-    <button class="filter-chip ${filter.value === currentGenre ? 'active' : ''}" data-value="${filter.value}">${filter.label}</button>
+    <button class="filter-chip ${filter.value === currentGenre && filter.key === currentFilterKey ? 'active' : ''}" data-key="${filter.key}" data-value="${filter.value}">${filter.label}</button>
   `).join('');
 
   filters.querySelectorAll('.filter-chip').forEach((button) => {
     button.addEventListener('click', () => {
       currentGenre = button.dataset.value;
+      currentFilterKey = button.dataset.key;
       currentPage = 1;
       renderFilters();
       loadCatalog();
     });
+  });
+}
+
+function renderOrdering() {
+  const ordering = document.getElementById('ordering');
+  if (!ordering) return;
+  ordering.value = currentOrdering;
+  ordering.addEventListener('change', () => {
+    currentOrdering = ordering.value;
+    currentPage = 1;
+    loadCatalog();
   });
 }
 
@@ -120,5 +147,6 @@ async function initSearch() {
 }
 
 renderFilters();
+renderOrdering();
 initSearch();
 loadCatalog();

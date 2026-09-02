@@ -32,6 +32,19 @@ export function debounce(callback, delay) {
   };
 }
 
+export function calculateGameRelevance(game = {}) {
+  const rating = Number(game.rating) || 0;
+  const ratingsCount = Math.max(0, Number(game.ratings_count) || 0);
+  const metacritic = Number(game.metacritic) || 0;
+  const added = Math.max(0, Number(game.added) || 0);
+
+  return (rating * 20) + (Math.log10(ratingsCount + 1) * 8) + (metacritic * 0.12) + (Math.log10(added + 1) * 3);
+}
+
+export function sortByRelevance(games = []) {
+  return [...games].sort((a, b) => calculateGameRelevance(b) - calculateGameRelevance(a));
+}
+
 export function observeLazyImages() {
   if (!("IntersectionObserver" in window)) {
     document.querySelectorAll("img[loading='lazy']").forEach((image) => image.classList.add("is-visible"));

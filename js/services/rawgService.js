@@ -1,5 +1,8 @@
 import { CONFIG } from "../config.js";
 
+const LIST_CACHE_TTL = 20 * 60 * 1000;
+const LIST_CACHE_PREFIX = "gameverse-list:";
+
 const FALLBACK_GAMES = [
   {
     id: 1,
@@ -89,6 +92,10 @@ function buildFallbackData(endpoint, params = {}) {
 
   if (normalizedEndpoint.startsWith("/games")) {
     const query = String(params.search || "").trim().toLowerCase();
+    const identifier = normalizedEndpoint.split("/")[2];
+    if (identifier && !["screenshots", "movies", "stores"].includes(identifier)) {
+      return { ...FALLBACK_GAMES.find((game) => game.slug === identifier || String(game.id) === identifier) || FALLBACK_GAMES[0] };
+    }
     const results = FALLBACK_GAMES.filter((game) => {
       if (!query) {
         return true;
@@ -139,8 +146,22 @@ export async function getGame(identifier) {
 }
 
 export async function getGamesList(params = {}) {
+  const cacheKey = `${LIST_CACHE_PREFIX}${JSON.stringify(params)}`;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+    if (cached && cached.expiresAt > Date.now()) return cached.results;
+  } catch (error) {
+    console.warn("Cache de listas indisponível.", error);
+  }
+
   const data = await requestRawg("/games", params);
-  return data.results || [];
+  const results = (data.results || []).filter((game) => game && game.name);
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ expiresAt: Date.now() + LIST_CACHE_TTL, results }));
+  } catch (error) {
+    console.warn("Não foi possível salvar o cache da lista.", error);
+  }
+  return results;
 }
 
 export async function getScreenshots(gameId) {

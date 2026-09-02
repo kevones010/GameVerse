@@ -1,4 +1,14 @@
 import { getGame, getGamesList } from './services/rawgService.js';
+import { sortByRelevance, escapeHtml } from './utils.js';
+
+const FAVORITE_NAMES = [
+  'Persona 5 Royal', 'Metaphor: ReFantazio', 'The Legend of Zelda: Breath of the Wild',
+  'Persona 4 Golden', 'Final Fantasy VII Remake', 'Resident Evil 4 Remake',
+  'Super Mario Odyssey', 'Hollow Knight: Silksong', 'Persona 3 Reload',
+  'Pokémon HeartGold', 'Pokémon Legends Z-A', 'Pokémon Legends Arceus',
+  'Super Mario World', 'Yakuza: Like a Dragon', 'Super Mario 64', 'Super Mario Galaxy',
+  'Pokémon Black 2', 'Zelda Ocarina of Time', 'Hollow Knight', 'Resident Evil 2 Remake'
+];
 
 const HERO_SLIDES = [
   { slug: 'persona-5-royal', tag: 'Nova coleção' },
@@ -27,7 +37,7 @@ function createCardMarkup(game) {
         <img src="${image}" alt="${game.name}" loading="lazy" />
       </div>
       <div class="card-body">
-        <h3>${game.name}</h3>
+        <h3>${escapeHtml(game.name)}</h3>
         <div class="meta">
           <span>${year}</span>
           <span>${rating}</span>
@@ -49,6 +59,7 @@ function renderSection(section, title, subtitle, games) {
         <h2>${title}</h2>
         <p>${subtitle}</p>
       </div>
+      <a class="section-more" href="categorias.html">Ver mais</a>
     </div>
     <div class="carousel-row">
       ${cardsMarkup}
@@ -145,65 +156,54 @@ async function renderHome() {
   const launches = document.getElementById('launches');
   const trending = document.getElementById('trending');
   const developerFavorites = document.getElementById('developerFavorites');
+  const topRated = document.getElementById('topRated');
   const rpg = document.getElementById('rpg');
   const action = document.getElementById('action');
+  const adventure = document.getElementById('adventure');
   const indie = document.getElementById('indie');
 
   renderSkeleton(hero, 'hero');
   renderSkeleton(launches);
   renderSkeleton(trending);
+  renderSkeleton(topRated);
   renderSkeleton(developerFavorites);
   renderSkeleton(rpg);
   renderSkeleton(action);
+  renderSkeleton(adventure);
   renderSkeleton(indie);
 
   try {
-    const [heroGames, launchGames, trendingGames, developerGames, rpgGames, actionGames, indieGames] = await Promise.all([
+    const [heroGames, launchGames, trendingGames, topRatedGames, developerGames, rpgGames, actionGames, adventureGames, indieGames] = await Promise.all([
       Promise.all(HERO_SLIDES.map(async (slide) => getGame(slide.slug))),
-      fetchGames({ dates: '2024-01-01,2026-12-31', ordering: '-released', page_size: 8 }),
-      fetchGames({ ordering: '-rating', page_size: 8 }),
-      fetchDeveloperFavorites([
-        'Persona 5 Royal',
-        'Metaphor: ReFantazio',
-        'The Legend of Zelda: Breath of the Wild',
-        'Persona 4 Golden',
-        'Final Fantasy VII Remake',
-        'Resident Evil 4 Remake',
-        'Super Mario Odyssey',
-        'Hollow Knight: Silksong',
-        'Persona 3 Reload',
-        'Pokémon HeartGold',
-        'Pokémon Legends Z-A',
-        'Pokémon Legends Arceus',
-        'Super Mario World',
-        'Yakuza: Like a Dragon',
-        'Super Mario 64',
-        'Super Mario Galaxy',
-        'Pokémon Black 2',
-        'Zelda Ocarina of Time',
-        'Hollow Knight',
-        'Resident Evil 2 Remake'
-      ]),
+      fetchGames({ dates: '2024-01-01,2026-12-31', ordering: '-added', page_size: 12 }),
+      fetchGames({ ordering: '-added', page_size: 12 }),
+      fetchGames({ ordering: '-rating', page_size: 12 }),
+      fetchDeveloperFavorites(FAVORITE_NAMES),
       fetchGames({ genres: '5', ordering: '-rating', page_size: 8 }),
       fetchGames({ genres: '4', ordering: '-rating', page_size: 8 }),
+      fetchGames({ genres: '3', ordering: '-rating', page_size: 8 }),
       fetchGames({ genres: '51', ordering: '-rating', page_size: 8 })
     ]);
 
     startHeroSlider(heroGames.map((game, index) => ({ ...game, tag: HERO_SLIDES[index].tag })));
 
-    renderSection(launches, '🔥 Lançamentos', 'Novidades recentes da biblioteca', launchGames);
+    renderSection(launches, '🔥 Lançamentos relevantes', 'Novidades recentes com maior impacto', sortByRelevance(launchGames).slice(0, 12));
     renderSection(trending, '⭐ Em Alta', 'Jogos mais populares da semana', trendingGames);
+    renderSection(topRated, '🏆 Mais bem avaliados', 'Qualidade e popularidade combinadas', sortByRelevance(topRatedGames).slice(0, 12));
     renderSection(developerFavorites, '❤️ Favoritos do Desenvolvedor', 'Uma seleção pensada para impressionar', developerGames);
     renderSection(rpg, '🧙 RPG / JRPG', 'Histórias épicas e mundos ricos', rpgGames);
     renderSection(action, '⚔️ Ação', 'Combate, ritmo e impacto', actionGames);
+    renderSection(adventure, '🗺️ Aventura', 'Descobertas e grandes jornadas', adventureGames);
     renderSection(indie, '🎮 Indies', 'Experiências criativas e originais', indieGames);
   } catch (error) {
     hero.innerHTML = '<div class="empty-state">Não foi possível carregar o destaque.</div>';
     launches.innerHTML = '<div class="empty-state">Erro ao carregar os lançamentos.</div>';
     trending.innerHTML = '<div class="empty-state">Erro ao carregar os destaques.</div>';
+    topRated.innerHTML = '<div class="empty-state">Não foi possível carregar esta seção. <button class="btn btn-secondary" onclick="location.reload()">Tentar novamente</button></div>';
     developerFavorites.innerHTML = '<div class="empty-state">Erro ao carregar os favoritos do desenvolvedor.</div>';
     rpg.innerHTML = '<div class="empty-state">Erro ao carregar os RPGs.</div>';
     action.innerHTML = '<div class="empty-state">Erro ao carregar as seções de ação.</div>';
+    adventure.innerHTML = '<div class="empty-state">Erro ao carregar as aventuras.</div>';
     indie.innerHTML = '<div class="empty-state">Erro ao carregar os indies.</div>';
   }
 }

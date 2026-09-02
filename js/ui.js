@@ -207,7 +207,7 @@ export function renderScreenshots(screenshots) {
       <p>Capturas da experiência</p>
     </div>
     <div class="screenshot-list">
-      ${screenshots.map((shot) => `
+      ${screenshots.slice(0, 8).map((shot) => `
         <article class="screenshot-card" data-image="${shot.image}">
           <img src="${shot.image}" alt="Screenshot" loading="lazy" />
         </article>
@@ -255,7 +255,7 @@ export function renderPrices(stores) {
       ${stores.length ? stores.map((store) => `
         <div class="price-card">
           <div>
-            <strong>${escapeHtml(store.store.name)}</strong>
+            <strong>${escapeHtml(store.store?.name || store.name || "Loja")}</strong>
             <span>Disponível para compra</span>
           </div>
           <span class="price-pill">Ver loja</span>
@@ -353,6 +353,13 @@ export function renderAnalysis(gameId) {
 
 export function renderSimilar(games) {
   const similar = document.getElementById("similar");
+  if (!games.length) {
+    similar.innerHTML = "";
+    similar.style.display = "none";
+    return;
+  }
+
+  similar.style.display = "";
   similar.innerHTML = `
     <div class="section-heading">
       <h2>Jogos similares</h2>
@@ -360,7 +367,7 @@ export function renderSimilar(games) {
     </div>
     <div class="similar-list">
       ${games.slice(0, 8).map((game) => `
-        <article class="similar-card" data-id="${game.id}">
+        <article class="similar-card" data-id="${game.id}" data-slug="${escapeHtml(game.slug || "")}">
           <img src="${game.background_image || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"}" alt="${escapeHtml(game.name)}" loading="lazy" />
           <div class="similar-card-body">
             <h4>${escapeHtml(game.name)}</h4>
@@ -374,7 +381,8 @@ export function renderSimilar(games) {
 
   similar.querySelectorAll(".similar-card").forEach((card) => {
     card.addEventListener("click", () => {
-      window.location.href = `game.html?id=${card.dataset.id}`;
+      const identifier = card.dataset.slug ? `slug=${encodeURIComponent(card.dataset.slug)}` : `id=${card.dataset.id}`;
+      window.location.href = `game.html?${identifier}`;
     });
   });
 

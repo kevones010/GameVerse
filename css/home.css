@@ -198,6 +198,25 @@ button, input { font: inherit; }
   color: var(--muted);
   font-size: 0.95rem;
 }
+.section-more {
+  color: #ffd9e1;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.catalog-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+.catalog-order select {
+  color: var(--text);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.7rem;
+}
 .carousel-row {
   display: flex;
   gap: 1rem;
@@ -224,7 +243,7 @@ button, input { font: inherit; }
   border-color: rgba(255,255,255,0.26);
 }
 .card-media {
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 2 / 3;
   overflow: hidden;
 }
 .card-media img {
