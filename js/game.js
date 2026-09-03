@@ -17,7 +17,7 @@ import {
 import { getGame, getScreenshots, getTrailer, getStores, getSuggestions, getSearch } from "./services/rawgService.js";
 import { getQueryParam, debounce } from "./utils.js";
 
-const CACHE_KEY = "gameverse-cache";
+const CACHE_KEY = "gameverse-cache-v2";
 
 function getCache() {
   try {

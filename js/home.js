@@ -14,7 +14,7 @@ const HERO_SLIDES = [
   { slug: 'persona-5-royal', tag: 'Nova coleção' },
   { slug: 'metaphor-refantazio', tag: 'Pré-lançamento' },
   { slug: 'the-legend-of-zelda-breath-of-the-wild', tag: 'Clássico' },
-  { slug: 'resident-evil-4-remake', tag: 'Terror premium' },
+  { slug: 'resident-evil-4-2023', tag: 'Terror premium' },
   { slug: 'super-mario-odyssey', tag: 'Família' }
 ];
 
