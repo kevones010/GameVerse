@@ -1,5 +1,6 @@
 import { escapeHtml, formatDate, buildYouTubeEmbed, observeLazyImages } from "./utils.js";
 import { DESCRIPTION_BY_SLUG } from "../data/descriptions-pt.js";
+import { navigateWithVee } from "./motion.js";
 
 function displayValue(value) {
   if (value === undefined || value === null || value === "") return "—";
@@ -44,7 +45,7 @@ export function renderHeader(game, suggestions = []) {
   header.innerHTML = `
     <nav class="navbar">
       <a href="index.html" class="brand">
-        <span class="brand-mark">G</span>
+        <span class="brand-mark"><img src="assets/brand/vee-logo-head.png" alt="Vee, mascote do GameVerse" /></span>
         <span>GameVerse</span>
       </a>
       <div class="nav-actions">
@@ -56,7 +57,7 @@ export function renderHeader(game, suggestions = []) {
         <a href="categorias.html" class="nav-btn">Categorias</a>
         <a href="favoritos.html" class="nav-btn">Favoritos</a>
         <div class="profile-pill">
-          <span class="profile-avatar">G</span>
+          <span class="profile-avatar"><img src="assets/brand/vee-avatar-happy.webp" alt="Avatar Vee" /></span>
           <span>Guest</span>
         </div>
       </div>
@@ -90,7 +91,7 @@ export function renderHeader(game, suggestions = []) {
     if (event.key === "Enter") {
       const query = searchInput.value.trim();
       if (query) {
-        window.location.href = `game.html?slug=${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}`;
+        navigateWithVee(`game.html?slug=${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}`);
       }
     }
   });
@@ -100,9 +101,9 @@ export function renderHeader(game, suggestions = []) {
     const id = target.getAttribute("data-id");
     const slug = target.getAttribute("data-slug");
     if (slug) {
-      window.location.href = `game.html?slug=${encodeURIComponent(slug)}`;
+      navigateWithVee(`game.html?slug=${encodeURIComponent(slug)}`);
     } else if (id) {
-      window.location.href = `game.html?id=${id}`;
+      navigateWithVee(`game.html?id=${id}`);
     }
   });
 
@@ -343,7 +344,7 @@ export function renderSimilar(games) {
   similar.querySelectorAll(".similar-card").forEach((card) => {
     card.addEventListener("click", () => {
       const identifier = card.dataset.slug ? `slug=${encodeURIComponent(card.dataset.slug)}` : `id=${card.dataset.id}`;
-      window.location.href = `game.html?${identifier}`;
+      navigateWithVee(`game.html?${identifier}`);
     });
   });
 

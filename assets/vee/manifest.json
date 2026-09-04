@@ -1,0 +1,34 @@
+{
+  "version": "6.1-assets-prep",
+  "status": "assets_only_not_implemented",
+  "basePath": "assets/vee",
+  "transition": {
+    "frames": [
+      "transition/vee-run-01.webp",
+      "transition/vee-run-02.webp",
+      "transition/vee-run-03.webp",
+      "transition/vee-run-04.webp"
+    ],
+    "sheet": "transition/vee-run-sheet.webp",
+    "jump": "transition/vee-jump.webp",
+    "idle": "transition/vee-idle.webp",
+    "frameCanvas": "256x256",
+    "sheetLayout": "4 columns x 1 row"
+  },
+  "states": {
+    "search": "states/vee-search.webp",
+    "error": "states/vee-error.webp",
+    "favorite": "states/vee-favorite.webp",
+    "loading": "states/vee-loading.webp"
+  },
+  "effects": {
+    "portal": "effects/portal.webp",
+    "particles": "effects/particles.webp"
+  },
+  "logo": {
+    "lockup": "logo/gameverse-logo-lockup.webp",
+    "head": "logo/vee-logo-head.png",
+    "favicon": "logo/vee-favicon.png",
+    "mark": "logo/gameverse-mark.svg"
+  }
+}

@@ -1,5 +1,6 @@
 import { getGame, getGamesList } from './services/rawgService.js';
 import { sortByRelevance, escapeHtml } from './utils.js';
+import { navigateWithVee } from './motion.js';
 
 const FAVORITE_NAMES = [
   'Persona 5 Royal', 'Metaphor: ReFantazio', 'The Legend of Zelda: Breath of the Wild',
@@ -23,7 +24,7 @@ let heroCurrentIndex = 0;
 
 function openGame(id, slug) {
   const target = slug ? `game.html?slug=${encodeURIComponent(slug)}` : `game.html?id=${id}`;
-  window.location.href = target;
+  navigateWithVee(target);
 }
 
 function createCardMarkup(game) {
@@ -255,7 +256,7 @@ async function initSearch() {
   suggestionsBox.addEventListener('click', (event) => {
     const target = event.target.closest('.suggestion-item');
     if (!target) return;
-    window.location.href = `game.html?slug=${encodeURIComponent(target.dataset.slug)}`;
+    navigateWithVee(`game.html?slug=${encodeURIComponent(target.dataset.slug)}`);
   });
 }
 

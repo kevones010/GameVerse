@@ -1,4 +1,5 @@
 import { getGame } from './services/rawgService.js';
+import { navigateWithVee } from './motion.js';
 
 const STORAGE_KEY = 'gameverse-favorites';
 
@@ -12,7 +13,7 @@ function getFavorites() {
 
 function openGame(id, slug) {
   const target = slug ? `game.html?slug=${encodeURIComponent(slug)}` : `game.html?id=${id}`;
-  window.location.href = target;
+  navigateWithVee(target);
 }
 
 async function renderFavorites() {
@@ -20,7 +21,12 @@ async function renderFavorites() {
   const favorites = getFavorites();
 
   if (!favorites.length) {
-    container.innerHTML = '<div class="empty-state">Nenhum favorito salvo ainda.</div>';
+    container.innerHTML = `
+      <div class="empty-state vee-empty-state">
+        <img src="assets/brand/vee-logo-head.png" alt="" />
+        <strong>Nenhum favorito salvo ainda.</strong>
+        <span>O Vee está esperando você escolher seus próximos universos.</span>
+      </div>`;
     return;
   }
 

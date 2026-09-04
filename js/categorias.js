@@ -1,5 +1,6 @@
 import { getGamesList } from './services/rawgService.js';
 import { escapeHtml, sortByRelevance } from './utils.js';
+import { navigateWithVee } from './motion.js';
 
 const FILTERS = [
   { label: 'Todos', key: 'genres', value: '' },
@@ -20,7 +21,7 @@ let currentOrdering = 'relevance';
 
 function openGame(id, slug) {
   const target = slug ? `game.html?slug=${encodeURIComponent(slug)}` : `game.html?id=${id}`;
-  window.location.href = target;
+  navigateWithVee(target);
 }
 
 function createCatalogCard(game) {
@@ -142,7 +143,7 @@ async function initSearch() {
   suggestionsBox.addEventListener('click', (event) => {
     const target = event.target.closest('.suggestion-item');
     if (!target) return;
-    window.location.href = `game.html?slug=${encodeURIComponent(target.dataset.slug)}`;
+    navigateWithVee(`game.html?slug=${encodeURIComponent(target.dataset.slug)}`);
   });
 }
 
