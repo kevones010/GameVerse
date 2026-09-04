@@ -14,7 +14,8 @@ import {
   renderModal,
   renderError
 } from "./ui.js";
-import { getGame, getScreenshots, getTrailer, getStores, getSuggestions, getSearch } from "./services/rawgService.js";
+import { getGame, getScreenshots, getGameTrailers, getStores, getSuggestions, getSearch } from "./services/rawgService.js";
+import { getYouTubeTrailer } from "./services/youtubeService.js";
 import { getQueryParam, debounce } from "./utils.js";
 
 const CACHE_KEY = "gameverse-cache-v2";
@@ -62,21 +63,31 @@ async function loadGamePage() {
 
     const results = await Promise.allSettled([
       Promise.resolve(getCachedValue(`screenshots:${game.id}`) || getScreenshots(game.id)),
-      Promise.resolve(getCachedValue(`trailer:${game.id}`) || getTrailer(game.id)),
+      Promise.resolve(getCachedValue(`trailers:${game.id}`) ?? getGameTrailers(game.id)),
       Promise.resolve(getCachedValue(`stores:${game.id}`) || getStores(game.id)),
       getSuggestions(game.name)
     ]);
 
     const screenshots = results[0].status === "fulfilled" ? results[0].value : [];
-    const trailer = results[1].status === "fulfilled" ? results[1].value : null;
+    const trailers = results[1].status === "fulfilled" ? results[1].value : [];
     const stores = results[2].status === "fulfilled" ? results[2].value : [];
     const similar = results[3].status === "fulfilled" ? results[3].value : [];
+    const rawgTrailer = trailers.find((item) => item?.data?.max || item?.data?.["480"]);
+    let youtubeTrailer = null;
+
+    if (rawgTrailer) {
+      console.info("[TRAILER] RAWG");
+    } else {
+      console.info("[TRAILER] YouTube fallback");
+      const youtubeResult = await Promise.allSettled([getYouTubeTrailer(game.name)]);
+      youtubeTrailer = youtubeResult[0].status === "fulfilled" ? youtubeResult[0].value : null;
+    }
 
     if (results[0].status === "fulfilled" && screenshots.length) {
       setCache(`screenshots:${game.id}`, screenshots);
     }
-    if (results[1].status === "fulfilled" && trailer) {
-      setCache(`trailer:${game.id}`, trailer);
+    if (results[1].status === "fulfilled") {
+      setCache(`trailers:${game.id}`, trailers);
     }
     if (results[2].status === "fulfilled") {
       setCache(`stores:${game.id}`, stores);
@@ -85,7 +96,7 @@ async function loadGamePage() {
     renderHeader(game);
     renderHero(game);
     renderSynopsis(game);
-    renderTrailer(trailer, game.name);
+    renderTrailer(trailers, game, youtubeTrailer);
     renderScreenshots(screenshots);
     renderInfo(game);
     renderPrices(stores.length ? stores : []);

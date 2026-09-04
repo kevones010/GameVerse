@@ -1,4 +1,5 @@
 import { CONFIG } from "../config.js";
+import { getLocalConfig } from "./localConfig.js";
 
 const LIST_CACHE_TTL = 20 * 60 * 1000;
 const LIST_CACHE_PREFIX = "gameverse-list-v2:";
@@ -16,11 +17,13 @@ function withSafeGameImage(game) {
 }
 
 async function requestRawg(endpoint, params = {}) {
-  const url = new URL(`${CONFIG.BASE_URL}${endpoint}`);
-
-  if (CONFIG.RAWG_API_KEY) {
-    url.searchParams.set("key", CONFIG.RAWG_API_KEY);
+  const { RAWG_API_KEY } = await getLocalConfig();
+  if (!RAWG_API_KEY) {
+    throw new Error("RAWG API key não configurada.");
   }
+
+  const url = new URL(`${CONFIG.BASE_URL}${endpoint}`);
+  url.searchParams.set("key", RAWG_API_KEY);
 
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -91,14 +94,15 @@ export async function getScreenshots(gameId) {
   }
 }
 
-export async function getTrailer(gameId) {
-  try {
-    const data = await requestRawg(`/games/${gameId}/movies`);
-    return data.results?.[0] || null;
-  } catch (error) {
-    console.warn("Trailer indisponível.", error);
-    return null;
+export async function getGameTrailers(gameId) {
+  if (gameId === undefined || gameId === null || String(gameId).trim() === "") {
+    throw new Error("ID do jogo ausente.");
   }
+
+  const normalizedGameId = encodeURIComponent(String(gameId).trim());
+  const data = await requestRawg(`/games/${normalizedGameId}/movies`);
+
+  return Array.isArray(data?.results) ? data.results : [];
 }
 
 export async function getStores(gameId) {

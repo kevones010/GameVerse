@@ -1,4 +1,4 @@
-import { escapeHtml, formatDate, buildYouTubeEmbed, observeLazyImages } from "./utils.js";
+import { escapeHtml, formatDate, observeLazyImages } from "./utils.js";
 import { DESCRIPTION_BY_SLUG } from "../data/descriptions-pt.js";
 import { navigateWithVee } from "./motion.js";
 
@@ -161,22 +161,43 @@ export function renderSynopsis(game) {
   document.getElementById("game-description").textContent = description.replace(/<[^>]*>/g, "");
 }
 
-export function renderTrailer(trailer, gameName) {
+export function renderTrailer(trailers, game, youtubeTrailer = null) {
   const trailerSection = document.getElementById("game-trailer");
-  const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${gameName} official trailer`)}`;
+  const trailer = (Array.isArray(trailers) ? trailers : []).find((item) => item?.data?.max || item?.data?.["480"]);
 
-  if (!trailer) {
-    trailerSection.innerHTML = `
-      <div class="trailer-placeholder">
-        <p>Trailer não encontrado na RAWG.</p>
-        <a class="btn btn-secondary" href="${youtubeUrl}" target="_blank" rel="noreferrer">Assistir no YouTube</a>
+  if (trailer) {
+    const videoUrl = trailer.data.max || trailer.data["480"];
+    const poster = trailer.preview || game?.background_image || game?.background_image_additional || "";
+    const posterAttribute = poster ? ` poster="${escapeHtml(poster)}"` : "";
+    const trailerName = trailer.name || `Trailer de ${game?.name || "jogo"}`;
+
+    trailerSection.innerHTML = `<div class="video-frame">
+        <video controls preload="metadata" playsinline${posterAttribute} aria-label="${escapeHtml(trailerName)}">
+          <source src="${escapeHtml(videoUrl)}" type="video/mp4" />
+          Seu navegador não oferece suporte à reprodução deste vídeo.
+        </video>
       </div>
     `;
     return;
   }
 
-  trailerSection.innerHTML = `<div class="video-frame">
-      <iframe src="${buildYouTubeEmbed(trailer.data?.[0]?.youtube_id || trailer.video_id || trailer.id)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+  if (youtubeTrailer?.videoId && youtubeTrailer?.embedUrl) {
+    trailerSection.innerHTML = `<div class="video-frame">
+        <iframe
+          src="${escapeHtml(youtubeTrailer.embedUrl)}"
+          title="${escapeHtml(youtubeTrailer.title || `Trailer de ${game?.name || "jogo"}`)}"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    `;
+    return;
+  }
+
+  trailerSection.innerHTML = `
+    <div class="trailer-placeholder">
+      <p>Trailer ainda não disponível para este jogo.</p>
     </div>
   `;
 }
