@@ -360,6 +360,11 @@ button, input { font: inherit; }
   .home-page { padding: 1rem 1rem 2rem; }
   .hero-slide { min-height: 430px; }
 }
+@media (max-width: 900px) {
+  .navbar { align-items: flex-start; }
+  .nav-actions { flex-wrap: wrap; }
+  .search-box { flex: 1 1 100%; min-width: 100%; }
+}
 @media (max-width: 640px) {
   .topbar { padding: 0.9rem 1rem; }
   .navbar { flex-wrap: wrap; }

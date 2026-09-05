@@ -55,6 +55,7 @@ export function renderHeader(game, suggestions = []) {
         </label>
         <a href="index.html" class="nav-btn">Home</a>
         <a href="categorias.html" class="nav-btn">Categorias</a>
+        <a href="comunidade.html" class="nav-btn">Comunidade</a>
         <a href="favoritos.html" class="nav-btn">Favoritos</a>
         <div class="profile-pill">
           <span class="profile-avatar"><img src="assets/brand/vee-avatar-happy.webp" alt="Avatar Vee" /></span>

@@ -665,6 +665,22 @@ img {
   }
 }
 
+@media (max-width: 920px) {
+  .navbar {
+    flex-wrap: wrap;
+  }
+
+  .nav-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     padding: 1rem;

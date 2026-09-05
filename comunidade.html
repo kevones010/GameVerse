@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comunidade | GameVerse</title>
+    <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
+    <link rel="stylesheet" href="css/community.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <nav class="navbar" aria-label="Navegação principal">
+          <a href="index.html" class="brand">
+            <span class="brand-mark"><img src="assets/brand/vee-logo-head.png" alt="Vee, mascote do GameVerse" /></span>
+            <span>GameVerse</span>
+          </a>
+          <div class="nav-actions">
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="comunidade.html" class="nav-btn active" aria-current="page">Comunidade</a>
+            <a href="favoritos.html" class="nav-btn">Favoritos</a>
+            <div class="community-user" id="communityUser" aria-label="Usuário de demonstração">
+              <span>Comunidade</span>
+            </div>
+          </div>
+        </nav>
+      </header>
+
+      <main class="community-page">
+        <section class="community-hero" aria-labelledby="communityTitle">
+          <div class="community-hero-copy">
+            <span class="eyebrow">Um espaço para quem joga</span>
+            <h1 id="communityTitle">Comunidade GameVerse</h1>
+            <p>Descubra guias, artes, screenshots e conversas criadas pela comunidade.</p>
+            <span class="mock-notice">Conteúdo demonstrativo nesta primeira fase.</span>
+          </div>
+          <img src="assets/vee/states/vee-search.webp" alt="Vee explorando a comunidade" />
+        </section>
+
+        <section class="community-controls" aria-label="Controles do feed">
+          <div class="community-tabs" id="feedTabs" role="group" aria-label="Ordenação das publicações"></div>
+          <div class="community-filters" id="postFilters" role="group" aria-label="Filtrar por tipo de publicação"></div>
+        </section>
+
+        <div class="community-layout">
+          <section class="feed-panel" aria-labelledby="feedTitle">
+            <div class="feed-heading">
+              <div>
+                <span class="eyebrow">Feed social</span>
+                <h2 id="feedTitle">Publicações</h2>
+              </div>
+              <span class="feed-count" id="feedCount">Carregando…</span>
+            </div>
+            <p class="sr-only" id="feedStatus" aria-live="polite"></p>
+            <div class="community-feed" id="communityFeed" aria-describedby="feedStatus"></div>
+            <button class="load-more" id="loadMorePosts" type="button" hidden>Carregar mais</button>
+          </section>
+
+          <aside class="discovery-column" aria-label="Descoberta da comunidade">
+            <section class="discovery-card">
+              <div class="discovery-heading">
+                <span aria-hidden="true">↗</span>
+                <h2>Em alta</h2>
+              </div>
+              <p>Jogos mais presentes nas conversas.</p>
+              <ul class="discovery-list" id="popularGames"></ul>
+            </section>
+
+            <section class="discovery-card">
+              <div class="discovery-heading">
+                <span aria-hidden="true">◆</span>
+                <h2>Guias populares</h2>
+              </div>
+              <p>Leituras que a comunidade está guardando.</p>
+              <ul class="discovery-list" id="popularGuides"></ul>
+            </section>
+
+            <section class="discovery-card">
+              <div class="discovery-heading">
+                <span aria-hidden="true">#</span>
+                <h2>Tópicos populares</h2>
+              </div>
+              <p>Assuntos recorrentes no feed.</p>
+              <ul class="topic-list" id="popularTags"></ul>
+            </section>
+          </aside>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <p>GameVerse © 2026 · Comunidade em construção</p>
+      </footer>
+    </div>
+
+    <noscript>Ative o JavaScript para visualizar a Comunidade GameVerse.</noscript>
+    <script type="module" src="js/community.js"></script>
+    <script type="module" src="js/motion.js"></script>
+  </body>
+</html>
