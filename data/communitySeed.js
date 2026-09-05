@@ -5,6 +5,53 @@ function isoBefore(now, milliseconds) {
   return new Date(now.getTime() - milliseconds).toISOString();
 }
 
+function materializeSeedInteractions(posts) {
+  const likes = [];
+  const comments = [];
+  const savedPosts = [];
+
+  posts.forEach((post) => {
+    const postPart = post.id.replace(/[^a-z0-9_-]/gi, "-");
+
+    for (let index = 0; index < post.likesCount; index += 1) {
+      likes.push({
+        id: `legacy-like-${postPart}-${index}`,
+        postId: post.id,
+        userId: `legacy-like-user-${postPart}-${index}`,
+        createdAt: post.createdAt,
+        origin: "seed-summary"
+      });
+    }
+
+    for (let index = 0; index < post.commentsCount; index += 1) {
+      comments.push({
+        id: `legacy-comment-${postPart}-${index}`,
+        postId: post.id,
+        authorId: `legacy-comment-user-${postPart}-${index}`,
+        parentCommentId: null,
+        content: "Comentário demonstrativo preservado da fase inicial.",
+        spoiler: false,
+        status: "published",
+        createdAt: post.createdAt,
+        updatedAt: post.createdAt,
+        origin: "seed-summary"
+      });
+    }
+
+    for (let index = 0; index < post.savesCount; index += 1) {
+      savedPosts.push({
+        id: `legacy-save-${postPart}-${index}`,
+        postId: post.id,
+        userId: `legacy-save-user-${postPart}-${index}`,
+        createdAt: post.createdAt,
+        origin: "seed-summary"
+      });
+    }
+  });
+
+  return { likes, comments, savedPosts };
+}
+
 export function createCommunitySeed(now = new Date()) {
   const users = [
     {
@@ -311,13 +358,15 @@ export function createCommunitySeed(now = new Date()) {
     })
   ];
 
+  const interactions = materializeSeedInteractions(posts);
+
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     users,
     posts,
-    comments: [],
-    likes: [],
-    savedPosts: [],
+    comments: interactions.comments,
+    likes: interactions.likes,
+    savedPosts: interactions.savedPosts,
     follows: [],
     reports: []
   };

@@ -1,7 +1,8 @@
 const TABS = [
   { value: "for-you", label: "Para você" },
   { value: "trending", label: "Em alta" },
-  { value: "recent", label: "Recentes" }
+  { value: "recent", label: "Recentes" },
+  { value: "saved", label: "Salvos" }
 ];
 
 const TYPES = [
@@ -72,6 +73,11 @@ export function createPostFilters({ tabsContainer, typesContainer, onChange }) {
     },
     setTab(tab) {
       state.tab = TABS.some((item) => item.value === tab) ? tab : "for-you";
+      notify();
+    },
+    setState(nextState = {}) {
+      state.tab = TABS.some((item) => item.value === nextState.tab) ? nextState.tab : state.tab;
+      state.type = TYPES.some((item) => item.value === nextState.type) ? nextState.type : state.type;
       notify();
     }
   };

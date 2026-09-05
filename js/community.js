@@ -1,8 +1,11 @@
 import { CommunityService } from "./services/community/communityService.js";
 import { LocalCommunityRepository } from "./services/community/localCommunityRepository.js";
 import { CommunitySession } from "./services/community/communitySession.js";
+import { createConfirmDialog } from "./community/ui/confirmDialog.js";
 import { createPostCard } from "./community/ui/postCard.js";
+import { createPostComposer } from "./community/ui/postComposer.js";
 import { createPostFilters } from "./community/ui/postFilters.js";
+import { createToastRegion } from "./community/ui/toast.js";
 
 const repository = new LocalCommunityRepository();
 const session = new CommunitySession(repository);
@@ -12,8 +15,13 @@ const feed = document.getElementById("communityFeed");
 const feedCount = document.getElementById("feedCount");
 const loadMoreButton = document.getElementById("loadMorePosts");
 const feedStatus = document.getElementById("feedStatus");
+const createPostButton = document.getElementById("createPostButton");
+const notify = createToastRegion();
+const confirmDelete = createConfirmDialog();
 let nextCursor = null;
 let requestVersion = 0;
+let currentUser = null;
+let composer = null;
 
 function renderSkeletons() {
   feed.replaceChildren();
@@ -21,27 +29,44 @@ function renderSkeletons() {
     const skeleton = document.createElement("div");
     skeleton.className = "post-skeleton";
     skeleton.setAttribute("aria-hidden", "true");
-    skeleton.innerHTML = '<span class="skeleton-avatar"></span><span class="skeleton-line skeleton-line--short"></span><span class="skeleton-line"></span><span class="skeleton-line"></span>';
+    const avatar = document.createElement("span");
+    avatar.className = "skeleton-avatar";
+    const shortLine = document.createElement("span");
+    shortLine.className = "skeleton-line skeleton-line--short";
+    const lineOne = document.createElement("span");
+    lineOne.className = "skeleton-line";
+    const lineTwo = document.createElement("span");
+    lineTwo.className = "skeleton-line";
+    skeleton.append(avatar, shortLine, lineOne, lineTwo);
     feed.appendChild(skeleton);
   });
   feed.setAttribute("aria-busy", "true");
 }
 
 function renderEmptyState(filters) {
+  const state = filters.getState();
+  const isSaved = state.tab === "saved";
   const empty = document.createElement("div");
   empty.className = "community-state";
   const image = document.createElement("img");
-  image.src = "assets/vee/states/vee-search.webp";
-  image.alt = "Vee procurando publicações";
+  image.src = isSaved ? "assets/vee/states/vee-favorite.webp" : "assets/vee/states/vee-search.webp";
+  image.alt = isSaved ? "Vee aguardando publicações salvas" : "Vee procurando publicações";
   const title = document.createElement("strong");
-  title.textContent = "Nenhuma publicação encontrada por aqui.";
+  title.textContent = isSaved
+    ? "Você ainda não salvou nenhuma publicação."
+    : "Nenhuma publicação encontrada por aqui.";
   const copy = document.createElement("span");
-  copy.textContent = "Experimente voltar para todos os tipos de conteúdo.";
+  copy.textContent = isSaved
+    ? "Explore o feed e use o botão Salvar para montar sua coleção local."
+    : "Experimente voltar para todos os tipos de conteúdo.";
   const button = document.createElement("button");
   button.type = "button";
   button.className = "btn btn-secondary";
-  button.textContent = "Ver todas";
-  button.addEventListener("click", () => filters.setType("all"));
+  button.textContent = isSaved ? "Explorar publicações" : "Ver todas";
+  button.addEventListener("click", () => {
+    if (isSaved) filters.setState({ tab: "for-you", type: "all" });
+    else filters.setType("all");
+  });
   empty.append(image, title, copy, button);
   feed.replaceChildren(empty);
 }
@@ -124,6 +149,40 @@ async function renderDiscovery() {
   }));
 }
 
+async function requestPostDeletion(post, trigger) {
+  const confirmed = await confirmDelete({
+    title: "Excluir esta publicação?",
+    description: "Essa ação removerá a publicação da sua comunidade local.",
+    trigger
+  });
+  if (!confirmed) return;
+
+  try {
+    await communityService.deletePost(post.id);
+    notify("Publicação excluída.");
+    await Promise.all([loadPosts({ append: false }), renderDiscovery()]);
+  } catch (error) {
+    notify(error.message || "Não foi possível excluir a publicação.", "error");
+  }
+}
+
+function createFeedCard(post) {
+  return createPostCard(post, {
+    service: communityService,
+    currentUser,
+    confirmDelete,
+    notify,
+    onEdit: (editablePost, trigger) => composer.openEdit(editablePost, trigger),
+    onDelete: requestPostDeletion,
+    onInteraction(type, changedPost, result) {
+      renderDiscovery().catch(() => {});
+      if (type === "save" && filters.getState().tab === "saved" && !result.saved) {
+        loadPosts({ append: false });
+      }
+    }
+  });
+}
+
 const filters = createPostFilters({
   tabsContainer: document.getElementById("feedTabs"),
   typesContainer: document.getElementById("postFilters"),
@@ -154,7 +213,7 @@ async function loadPosts({ append = false } = {}) {
       renderEmptyState(filters);
     } else {
       const fragment = document.createDocumentFragment();
-      result.items.forEach((post) => fragment.appendChild(createPostCard(post)));
+      result.items.forEach((post) => fragment.appendChild(createFeedCard(post)));
       feed.appendChild(fragment);
     }
 
@@ -181,15 +240,42 @@ loadMoreButton.addEventListener("click", () => loadPosts({ append: true }));
 
 async function initializeCommunity() {
   renderSkeletons();
+  createPostButton.disabled = true;
   try {
     await communityService.initialize();
-    const currentUser = await communityService.getCurrentUser();
+    currentUser = await communityService.getCurrentUser();
     renderCurrentUser(currentUser);
+    if (!composer) {
+      composer = createPostComposer({
+        service: communityService,
+        async onSaved(post, mode) {
+          notify(mode === "edit" ? "Publicação atualizada." : "Publicação criada.");
+          if (mode === "create") filters.setState({ tab: "recent", type: "all" });
+          else await loadPosts({ append: false });
+          await renderDiscovery();
+        },
+        onError(error) {
+          if (error.code !== "validation-error") {
+            notify(error.message || "Não foi possível salvar a publicação.", "error");
+          }
+        }
+      });
+    }
+    createPostButton.disabled = false;
     await Promise.all([loadPosts(), renderDiscovery()]);
   } catch (error) {
     renderFeedError(initializeCommunity);
     feedStatus.textContent = "Falha ao carregar publicações";
+    createPostButton.disabled = true;
   }
 }
+
+createPostButton.addEventListener("click", async () => {
+  try {
+    await composer?.openCreate(createPostButton);
+  } catch (error) {
+    notify(error.message || "Não foi possível abrir o composer.", "error");
+  }
+});
 
 initializeCommunity();

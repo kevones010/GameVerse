@@ -1,3 +1,4 @@
+import { createCommentsSection } from "./comments.js";
 import { createSpoilerContent } from "./spoilerContent.js";
 
 const TYPE_LABELS = {
@@ -15,7 +16,7 @@ function safeAssetUrl(value, fallback = "") {
   return fallback;
 }
 
-function truncate(value, maximum = 280) {
+function truncate(value, maximum = 560) {
   const text = String(value || "").trim();
   return text.length > maximum ? `${text.slice(0, maximum).trimEnd()}…` : text;
 }
@@ -77,18 +78,63 @@ function createPostBody(post) {
   return fragment;
 }
 
-function createStat(icon, value, label) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "post-stat";
-  button.disabled = true;
-  button.title = `${label} — disponível em breve`;
-  button.setAttribute("aria-label", `${value} ${label}. Recurso disponível em breve.`);
-  button.textContent = `${icon} ${value}`;
-  return button;
+function setLikeState(button, liked, count) {
+  button.classList.toggle("is-active", liked);
+  button.setAttribute("aria-pressed", String(liked));
+  button.setAttribute("aria-label", `${liked ? "Descurtir" : "Curtir"}. ${count} curtidas.`);
+  button.textContent = `${liked ? "♥" : "♡"} ${count}`;
 }
 
-export function createPostCard(post) {
+function setSavedState(button, saved, count) {
+  button.classList.toggle("is-active", saved);
+  button.setAttribute("aria-pressed", String(saved));
+  button.setAttribute("aria-label", `${saved ? "Remover dos salvos" : "Salvar publicação"}. ${count} salvos.`);
+  button.textContent = `🔖 ${saved ? "Salvo" : "Salvar"} · ${count}`;
+}
+
+function createOwnerMenu(post, { service, currentUser, onEdit, onDelete }) {
+  if (!service.canEditPost(post, currentUser)) return null;
+
+  const details = document.createElement("details");
+  details.className = "post-owner-menu";
+  const summary = document.createElement("summary");
+  summary.textContent = "⋯";
+  summary.setAttribute("aria-label", `Ações da publicação ${post.title}`);
+  const menu = document.createElement("div");
+  menu.className = "post-owner-menu-popover";
+  menu.setAttribute("role", "menu");
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.setAttribute("role", "menuitem");
+  edit.textContent = "Editar";
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "is-danger";
+  remove.setAttribute("role", "menuitem");
+  remove.textContent = "Excluir";
+  edit.addEventListener("click", () => {
+    details.open = false;
+    onEdit(post, edit);
+  });
+  remove.addEventListener("click", () => {
+    details.open = false;
+    onDelete(post, remove);
+  });
+  menu.append(edit, remove);
+  details.append(summary, menu);
+  return details;
+}
+
+export function createPostCard(post, options) {
+  const {
+    service,
+    currentUser,
+    confirmDelete,
+    notify,
+    onEdit,
+    onDelete,
+    onInteraction
+  } = options;
   const article = document.createElement("article");
   article.className = `post-card post-card--${post.type}`;
   article.dataset.postId = post.id;
@@ -114,12 +160,23 @@ export function createPostCard(post) {
   profileNotice.textContent = "Perfis em breve";
   author.append(authorName, handle, profileNotice);
 
+  const metadata = document.createElement("div");
+  metadata.className = "post-metadata";
   const time = document.createElement("time");
   time.className = "post-time";
   time.dateTime = post.createdAt;
   time.textContent = formatRelativeTime(post.createdAt);
+  metadata.appendChild(time);
+  if (new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime()) {
+    const edited = document.createElement("span");
+    edited.className = "post-edited";
+    edited.textContent = "editado";
+    metadata.appendChild(edited);
+  }
 
-  header.append(avatar, author, time);
+  header.append(avatar, author, metadata);
+  const ownerMenu = createOwnerMenu(post, { service, currentUser, onEdit, onDelete });
+  if (ownerMenu) header.appendChild(ownerMenu);
 
   const context = document.createElement("div");
   context.className = "post-context";
@@ -148,12 +205,58 @@ export function createPostCard(post) {
 
   const actions = document.createElement("footer");
   actions.className = "post-actions";
-  actions.append(
-    createStat("♥", post.likesCount, "curtidas"),
-    createStat("Comentários", post.commentsCount, "comentários"),
-    createStat("Salvar", post.savesCount, "salvos")
-  );
+  const like = document.createElement("button");
+  like.type = "button";
+  like.className = "post-stat post-like";
+  setLikeState(like, post.likedByCurrentUser, post.likesCount);
+  like.addEventListener("click", async () => {
+    like.disabled = true;
+    try {
+      const result = await service.toggleLike(post.id);
+      post.likedByCurrentUser = result.liked;
+      post.likesCount = result.likesCount;
+      setLikeState(like, result.liked, result.likesCount);
+      onInteraction?.("like", post, result);
+    } catch (error) {
+      notify(error.message || "Não foi possível atualizar a curtida.", "error");
+    } finally {
+      like.disabled = false;
+    }
+  });
 
-  article.append(header, context, body, actions);
+  const comments = createCommentsSection({
+    postId: post.id,
+    initialCount: post.commentsCount,
+    currentUser,
+    service,
+    confirmDelete,
+    notify,
+    onCountChange(nextCount) {
+      post.commentsCount = nextCount;
+    }
+  });
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "post-stat post-save";
+  setSavedState(save, post.savedByCurrentUser, post.savesCount);
+  save.addEventListener("click", async () => {
+    save.disabled = true;
+    try {
+      const result = await service.toggleSaved(post.id);
+      post.savedByCurrentUser = result.saved;
+      post.savesCount = result.savesCount;
+      setSavedState(save, result.saved, result.savesCount);
+      notify(result.saved ? "Publicação salva." : "Publicação removida dos salvos.");
+      onInteraction?.("save", post, result);
+    } catch (error) {
+      notify(error.message || "Não foi possível atualizar os salvos.", "error");
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  actions.append(like, comments.button, save);
+  article.append(header, context, body, actions, comments.panel);
   return article;
 }
