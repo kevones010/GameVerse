@@ -6,6 +6,7 @@
     <title>GameVerse | Detalhes do jogo</title>
     <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
     <link rel="stylesheet" href="css/game.css" />
+    <link rel="stylesheet" href="css/community-preview.css" />
   </head>
   <body>
     <div class="page-shell">
@@ -26,6 +27,7 @@
               <button id="favoriteButton" class="btn btn-primary favorite-btn" type="button">★ Favoritar</button>
               <button id="shareButton" class="btn btn-secondary" type="button">↗ Compartilhar</button>
               <button id="trailerButton" class="btn btn-secondary" type="button">▶ Trailer</button>
+              <a id="gameCommunityLink" class="btn btn-secondary" hidden>Comunidade</a>
             </div>
           </div>
         </section>
@@ -36,6 +38,11 @@
             <section class="section-card" id="trailer"><div class="section-heading"><h2>Trailer</h2><p>Prévia oficial</p></div><div id="game-trailer"></div></section>
             <section class="section-card" id="screenshots"><div class="section-heading"><h2>Galeria</h2><p>Capturas da experiência</p></div><div id="game-screenshots" class="screenshot-list"></div></section>
             <section class="section-card" id="analysis"><div class="section-heading"><h2>Sua análise</h2><p>Registre sua opinião sobre este jogo.</p></div><div id="game-review"></div></section>
+            <section class="section-card game-community-preview" id="gameCommunityPreview" aria-labelledby="gameCommunityTitle" hidden>
+              <div class="section-heading"><h2 id="gameCommunityTitle">Comunidade</h2><p id="gameCommunityCount" aria-live="polite">Carregando publicações…</p></div>
+              <div id="gameCommunityPosts" aria-busy="true"><div class="game-community-skeleton" aria-hidden="true"></div><div class="game-community-skeleton" aria-hidden="true"></div></div>
+              <a class="btn btn-secondary" id="gameCommunityAll">Ver toda a comunidade</a>
+            </section>
             <section class="section-card" id="similar"><div class="section-heading"><h2>Você também pode gostar</h2><p>Explore mais experiências</p></div><div id="game-related" class="similar-list"></div></section>
           </div>
 

@@ -1,3 +1,5 @@
+import { createGamePicker } from "./gamePicker.js";
+
 const POST_TYPE_OPTIONS = [
   { value: "guide", label: "Guia" },
   { value: "art", label: "Arte" },
@@ -90,12 +92,7 @@ export function createPostComposer({ service, onSaved, onError }) {
     maxlength: "5000",
     hint: "Texto simples, até 5000 caracteres."
   });
-  const gameField = createTextField({
-    name: "gameId",
-    label: "Jogo relacionado — opcional",
-    tag: "select",
-    hint: "Lista local derivada das publicações existentes."
-  });
+  const gameField = createGamePicker();
   const tagsField = createTextField({
     name: "tags",
     label: "Tags",
@@ -199,24 +196,10 @@ export function createPostComposer({ service, onSaved, onError }) {
       element.disabled = isSubmitting;
     });
     closeButton.disabled = isSubmitting;
+    gameField.setDisabled(isSubmitting);
     submitButton.textContent = isSubmitting
       ? (mode === "edit" ? "Salvando…" : "Publicando…")
       : (mode === "edit" ? "Salvar alterações" : "Publicar");
-  }
-
-  async function populateGames(selectedGameId = null) {
-    const games = await service.listAvailableGames();
-    const emptyOption = document.createElement("option");
-    emptyOption.value = "";
-    emptyOption.textContent = "Nenhum jogo";
-    const options = games.map((game) => {
-      const option = document.createElement("option");
-      option.value = String(game.id);
-      option.textContent = game.name;
-      return option;
-    });
-    gameField.field.replaceChildren(emptyOption, ...options);
-    gameField.field.value = selectedGameId === null ? "" : String(selectedGameId);
   }
 
   function resetForm() {
@@ -227,17 +210,19 @@ export function createPostComposer({ service, onSaved, onError }) {
   }
 
   function close() {
+    gameField.close();
     if (dialog.open) dialog.close();
   }
 
-  async function open(post = null, trigger = document.activeElement) {
+  async function open(post = null, trigger = document.activeElement, game = null) {
+    if (isSubmitting) return;
     mode = post ? "edit" : "create";
     editingPost = post;
     opener = trigger instanceof HTMLElement ? trigger : null;
     resetForm();
     title.textContent = post ? "Editar publicação" : "Criar publicação";
     submitButton.textContent = post ? "Salvar alterações" : "Publicar";
-    await populateGames(post?.game?.id ?? null);
+    gameField.open(post ? post.game : game);
 
     if (post) {
       form.elements.type.value = post.type;
@@ -269,8 +254,13 @@ export function createPostComposer({ service, onSaved, onError }) {
     }
   });
   dialog.addEventListener("close", () => {
+    // A queued close event can arrive after the same dialog has reopened.
+    if (dialog.open) return;
+    gameField.close();
     document.body.classList.remove("modal-open");
-    requestAnimationFrame(() => opener?.focus());
+    requestAnimationFrame(() => {
+      if (!dialog.open) opener?.focus();
+    });
   });
 
   form.addEventListener("submit", async (event) => {
@@ -281,7 +271,7 @@ export function createPostComposer({ service, onSaved, onError }) {
       type: form.elements.type.value,
       title: titleField.field.value,
       content: contentField.field.value,
-      gameId: gameField.field.value,
+      ...gameField.getValue(),
       tags: tagsField.field.value,
       mediaUrl: mediaField.field.value,
       spoiler: spoilerInput.checked,
@@ -310,8 +300,8 @@ export function createPostComposer({ service, onSaved, onError }) {
   });
 
   return {
-    openCreate(trigger) {
-      return open(null, trigger);
+    openCreate(trigger, game = null) {
+      return open(null, trigger, game);
     },
     openEdit(post, trigger) {
       return open(post, trigger);

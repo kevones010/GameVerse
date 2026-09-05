@@ -47,6 +47,31 @@ function resolveIdentifier() {
   return "persona-5-royal";
 }
 
+// Social imports and storage failures are isolated from the game render path.
+async function loadCommunityPreview(gameId) {
+  const section = document.getElementById("gameCommunityPreview");
+  if (!section) return;
+  const href = `comunidade-jogo.html?gameId=${encodeURIComponent(gameId)}`;
+  try {
+    const link = document.getElementById("gameCommunityLink");
+    link.href = href;
+    link.hidden = false;
+    document.getElementById("gameCommunityAll").href = href;
+    section.hidden = false;
+    const { renderGameCommunityPreview } = await import("./community/ui/gameCommunityPreview.js");
+    await renderGameCommunityPreview(section, gameId);
+  } catch {
+    // Even a missing module must never reach renderError() or erase game data.
+    const count = document.getElementById("gameCommunityCount");
+    const posts = document.getElementById("gameCommunityPosts");
+    if (count) count.textContent = "Não foi possível carregar as publicações agora.";
+    if (posts) {
+      posts.replaceChildren();
+      posts.removeAttribute("aria-busy");
+    }
+  }
+}
+
 async function loadGamePage() {
   renderSkeletons();
   renderModal();
@@ -104,6 +129,7 @@ async function loadGamePage() {
     renderAnalysis(game.id);
     renderSimilar(similar.filter((item) => item.id !== game.id && item.slug !== game.slug).slice(0, 8));
     renderFooter();
+    requestAnimationFrame(() => { void loadCommunityPreview(game.id); });
 
     const searchInput = document.getElementById("searchInput");
     if (searchInput) {

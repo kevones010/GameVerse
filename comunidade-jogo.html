@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comunidade do jogo | GameVerse</title>
+    <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
+    <link rel="stylesheet" href="css/community.css" />
+    <link rel="stylesheet" href="css/community-game.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <nav class="navbar" aria-label="Navegação principal">
+          <a href="index.html" class="brand">
+            <span class="brand-mark"><img src="assets/brand/vee-logo-head.png" alt="Vee, mascote do GameVerse" /></span>
+            <span>GameVerse</span>
+          </a>
+          <div class="nav-actions">
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="comunidade.html" class="nav-btn active">Comunidade</a>
+            <a href="favoritos.html" class="nav-btn">Favoritos</a>
+            <div class="community-user" id="communityUser" aria-label="Usuário de demonstração"><span>Comunidade</span></div>
+          </div>
+        </nav>
+      </header>
+
+      <main class="community-page game-community-page">
+        <nav class="game-hub-breadcrumb" aria-label="Caminho da página">
+          <a href="comunidade.html">Comunidade</a>
+          <span aria-hidden="true">›</span>
+          <span id="hubBreadcrumbName" aria-current="page">Comunidade do jogo</span>
+        </nav>
+
+        <section class="game-hub-hero" id="hubHero" aria-labelledby="hubTitle" aria-busy="true">
+          <img class="game-hub-background" id="hubGameImage" alt="" hidden />
+          <div class="game-hub-hero-copy">
+            <span class="eyebrow">Comunidade</span>
+            <div class="game-hub-header-skeleton" id="hubHeaderSkeleton" aria-hidden="true">
+              <span class="skeleton-line"></span>
+              <span class="skeleton-line skeleton-line--short"></span>
+            </div>
+            <h1 id="hubTitle" hidden>Comunidade do jogo</h1>
+            <div class="game-hub-genres" id="hubGenres"></div>
+            <p class="game-hub-total" id="hubPostCount">Carregando publicações…</p>
+            <div class="community-hero-actions">
+              <a class="btn btn-secondary" id="hubGameLink" hidden>Ver página do jogo</a>
+              <button class="btn btn-primary create-post-button" id="createPostButton" type="button" disabled>+ Criar publicação</button>
+            </div>
+            <div class="game-hub-enrichment" aria-live="polite">
+              <p id="hubGameStatus"></p>
+              <button class="btn btn-secondary btn-small" id="retryGameDetails" type="button" hidden>Tentar novamente</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="game-hub-content" id="hubContent">
+          <section class="community-controls" aria-label="Controles das publicações do jogo">
+            <div class="community-filters" id="postFilters" role="group" aria-label="Filtrar por tipo de publicação"></div>
+            <div class="community-tabs" id="feedTabs" role="group" aria-label="Ordenação das publicações"></div>
+          </section>
+
+          <div class="community-layout">
+            <section class="feed-panel" aria-labelledby="feedTitle">
+              <div class="feed-heading">
+                <div><span class="eyebrow">Conversas deste jogo</span><h2 id="feedTitle">Publicações</h2></div>
+                <span class="feed-count" id="feedCount">Carregando…</span>
+              </div>
+              <p class="sr-only" id="feedStatus" aria-live="polite"></p>
+              <div class="community-feed" id="communityFeed" aria-describedby="feedStatus"></div>
+              <button class="load-more" id="loadMorePosts" type="button" hidden>Carregar mais</button>
+            </section>
+
+            <aside class="discovery-column game-hub-sidebar" aria-label="Sobre a comunidade do jogo">
+              <section class="discovery-card">
+                <div class="discovery-heading"><span aria-hidden="true">◎</span><h2>Sobre a comunidade</h2></div>
+                <p id="hubStatsTotal">Carregando contagem…</p>
+                <dl class="game-hub-counts" id="hubTypeCounts"></dl>
+                <button class="btn btn-secondary btn-small" id="retryHubStats" type="button" hidden>Tentar novamente</button>
+              </section>
+              <section class="discovery-card">
+                <div class="discovery-heading"><span aria-hidden="true">#</span><h2>Tags populares</h2></div>
+                <p id="hubTagsEmpty">Carregando tópicos…</p>
+                <ul class="topic-list" id="hubTags"></ul>
+              </section>
+              <section class="discovery-card">
+                <div class="discovery-heading"><span aria-hidden="true">◆</span><h2>Criadores ativos</h2></div>
+                <p id="hubCreatorsEmpty">Carregando criadores…</p>
+                <ul class="discovery-list" id="hubCreators"></ul>
+              </section>
+            </aside>
+          </div>
+        </div>
+        <div id="hubInvalidState" hidden></div>
+      </main>
+
+      <footer class="site-footer"><p>GameVerse © 2026 · Comunidade em construção</p></footer>
+    </div>
+    <noscript>Ative o JavaScript para visualizar a comunidade deste jogo.</noscript>
+    <script type="module" src="js/communityGame.js"></script>
+    <script type="module" src="js/motion.js"></script>
+  </body>
+</html>

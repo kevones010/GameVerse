@@ -33,7 +33,9 @@ async function requestRawg(endpoint, params = {}) {
 
   const response = await fetch(url.toString());
   if (!response.ok) {
-    throw new Error(`RAWG request failed: ${response.status}`);
+    const error = new Error(`RAWG request failed: ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();
@@ -133,4 +135,33 @@ export async function getSearch(query) {
     console.warn("Busca indisponível.", error);
     return [];
   }
+}
+
+// Strict search for the composer: unlike legacy suggestions, failure is not
+// an empty result. Reuses the existing request/configuration without logging it.
+export async function searchGames(query) {
+  const normalizedQuery = String(query ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
+  if (normalizedQuery.length < 2) return [];
+  const cacheKey = `gameverse-community-game-search:v1:${normalizedQuery.toLowerCase()}`;
+  const snapshots = (results) => (Array.isArray(results) ? results : [])
+    .filter((game) => Number.isSafeInteger(game?.id) && game.id > 0 && typeof game.name === "string")
+    .slice(0, 6)
+    .map((game) => ({
+      id: game.id,
+      name: game.name,
+      slug: typeof game.slug === "string" ? game.slug : "",
+      background_image: typeof game.background_image === "string" && /^https:\/\//i.test(game.background_image)
+        ? game.background_image : "",
+      released: typeof game.released === "string" ? game.released : ""
+    }));
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+    if (cached?.expiresAt > Date.now() && Array.isArray(cached.results)) return snapshots(cached.results);
+  } catch { /* Search remains available when browser storage is blocked. */ }
+  const data = await requestRawg("/games", { search: normalizedQuery, page_size: 6 });
+  const results = snapshots(data.results);
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ expiresAt: Date.now() + 5 * 60 * 1000, results }));
+  } catch { /* Cache is optional. */ }
+  return results;
 }

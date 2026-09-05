@@ -5,6 +5,7 @@ import {
 } from "./communityMappers.js";
 import {
   CommunityError,
+  normalizeGameId,
   normalizeListOptions,
   POST_TYPES,
   validateComment,
@@ -115,6 +116,7 @@ export class CommunityService {
     const visiblePosts = posts.filter((post) => (
       post.status === "published"
       && post.visibility === "public"
+      && (normalized.gameId === null || normalizeGameId(post.gameId) === normalized.gameId)
       && (normalized.type === "all" || post.type === normalized.type)
       && (normalized.tab !== "saved" || interactions.savedPostIds.has(post.id))
     ));
@@ -148,6 +150,46 @@ export class CommunityService {
       liked: interactions.likedPostIds.has(post.id),
       saved: interactions.savedPostIds.has(post.id)
     });
+  }
+
+  async listPostsByGame(gameId, options = {}) {
+    const id = normalizeGameId(gameId);
+    if (id === null) throw new CommunityError("Jogo inválido.", { code: "invalid-game-id" });
+    return this.listPosts({ ...options, gameId: id });
+  }
+
+  async countPostsByGame(gameId) {
+    return (await this.getCommunityGameStats(gameId)).total;
+  }
+
+  async getCommunityGameStats(gameId) {
+    const id = normalizeGameId(gameId);
+    if (id === null) throw new CommunityError("Jogo inválido.", { code: "invalid-game-id" });
+    await this.initialize();
+    const [posts, users] = await Promise.all([this.repository.listPosts(), this.repository.listUsers()]);
+    const published = posts.filter((post) => post.status === "published"
+      && post.visibility === "public" && normalizeGameId(post.gameId) === id);
+    const counts = Object.fromEntries(POST_TYPES.map((type) => [type, 0]));
+    const tags = new Map();
+    const creators = new Map();
+    published.forEach((post) => {
+      counts[post.type] += 1;
+      new Set(post.tags || []).forEach((tag) => tags.set(tag, (tags.get(tag) || 0) + 1));
+      creators.set(post.authorId, (creators.get(post.authorId) || 0) + 1);
+    });
+    const snapshot = sortPosts(published, "recent").find((post) => post.gameName);
+    const byPopularity = (first, second) => second.postsCount - first.postsCount;
+    return {
+      gameId: id,
+      total: published.length,
+      counts,
+      game: snapshot ? { id, name: snapshot.gameName, slug: snapshot.gameSlug || "" } : null,
+      tags: [...tags].map(([tag, postsCount]) => ({ tag, postsCount }))
+        .sort((a, b) => byPopularity(a, b) || a.tag.localeCompare(b.tag, "pt-BR")).slice(0, 8),
+      creators: users.filter((user) => creators.has(user.id))
+        .map((user) => ({ ...mapCommunityUser(user), postsCount: creators.get(user.id) }))
+        .sort((a, b) => byPopularity(a, b) || a.displayName.localeCompare(b.displayName, "pt-BR")).slice(0, 5)
+    };
   }
 
   async listTrendingPosts(options = {}) {
@@ -206,11 +248,8 @@ export class CommunityService {
 
   async createPost(input) {
     await this.initialize();
-    const [currentUser, games] = await Promise.all([
-      this.requireCurrentUser(),
-      this.listAvailableGames()
-    ]);
-    const normalized = validatePost(input, games);
+    const currentUser = await this.requireCurrentUser();
+    const normalized = validatePost(input);
     const now = new Date().toISOString();
     const post = await this.repository.createPost({
       id: createId("post"),
@@ -229,15 +268,16 @@ export class CommunityService {
 
   async updatePost(postId, input) {
     await this.initialize();
-    const [currentUser, existingPost, games] = await Promise.all([
+    const [currentUser, existingPost] = await Promise.all([
       this.requireCurrentUser(),
-      this.repository.getPostById(postId),
-      this.listAvailableGames()
+      this.repository.getPostById(postId)
     ]);
     if (!this.canEditPost(existingPost, currentUser)) {
       throw new CommunityError("Você só pode editar suas próprias publicações.", { code: "forbidden" });
     }
-    const normalized = validatePost(input, games);
+    const normalized = validatePost(input, [{
+      id: existingPost.gameId, name: existingPost.gameName, slug: existingPost.gameSlug
+    }]);
     const updatedTimestamp = Math.max(Date.now(), timestamp(existingPost.createdAt) + 1);
     const post = await this.repository.updatePost(postId, {
       ...normalized,

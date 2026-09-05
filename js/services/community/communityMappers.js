@@ -1,3 +1,5 @@
+import { normalizeGameId } from "./communityValidation.js";
+
 const UNKNOWN_USER = Object.freeze({
   id: "unknown",
   handle: "visitante",
@@ -25,9 +27,9 @@ export function mapCommunityPost(post, author, interactionState = {}) {
     id: post.id,
     authorId: post.authorId,
     author: mapCommunityUser(author) || { ...UNKNOWN_USER },
-    game: post.gameId === null ? null : {
-      id: Number(post.gameId),
-      name: post.gameName || "Jogo",
+    game: normalizeGameId(post.gameId) === null ? null : {
+      id: normalizeGameId(post.gameId),
+      name: post.gameName || "",
       slug: post.gameSlug || ""
     },
     type: post.type,

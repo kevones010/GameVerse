@@ -128,8 +128,7 @@ async function renderDiscovery() {
 
   const gamesList = document.getElementById("popularGames");
   gamesList.replaceChildren(...games.map((game) => {
-    const identifier = game.slug ? `slug=${encodeURIComponent(game.slug)}` : `id=${game.id}`;
-    return createSidebarListItem(game.name, `${game.postsCount} publicações`, `game.html?${identifier}`);
+    return createSidebarListItem(game.name, `${game.postsCount} publicações`, `comunidade-jogo.html?gameId=${encodeURIComponent(game.id)}`);
   }));
 
   const guidesList = document.getElementById("popularGuides");

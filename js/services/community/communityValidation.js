@@ -28,6 +28,16 @@ export class CommunityValidationError extends CommunityError {
   }
 }
 
+// RAWG IDs are canonical decimal integers; slugs and loose numeric coercion
+// (hex, fractions, exponents, booleans) must never identify a community.
+export function normalizeGameId(value) {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  if (!/^\d+$/.test(text)) return null;
+  const id = Number(text);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
 function asTrimmedText(value) {
   return String(value ?? "").trim();
 }
@@ -215,12 +225,12 @@ export function validatePost(input, availableGames = []) {
   const tags = normalizeTags(input?.tags);
   const rawMediaUrl = asTrimmedText(input?.mediaUrl);
   const mediaUrl = validateMediaUrl(rawMediaUrl);
-  const requestedGameId = input?.gameId === null || input?.gameId === undefined || input?.gameId === ""
-    ? null
-    : Number(input.gameId);
-  const selectedGame = requestedGameId === null
-    ? null
-    : availableGames.find((game) => Number(game.id) === requestedGameId) || null;
+  const hasGame = input?.gameId !== null && input?.gameId !== undefined && input?.gameId !== "";
+  const requestedGameId = normalizeGameId(input?.gameId);
+  const previousSnapshot = requestedGameId === null ? null
+    : availableGames.find((game) => normalizeGameId(game.id) === requestedGameId);
+  const gameName = asTrimmedText(input?.gameName ?? previousSnapshot?.name);
+  const gameSlug = asTrimmedText(input?.gameSlug ?? previousSnapshot?.slug);
 
   if (!type) fieldErrors.type = "Escolha um tipo de publicação.";
   if (!title) fieldErrors.title = "Informe um título.";
@@ -229,7 +239,10 @@ export function validatePost(input, availableGames = []) {
   if (!content) fieldErrors.content = "Escreva o conteúdo da publicação.";
   else if (content.length < POST_CONTENT_MIN) fieldErrors.content = "O conteúdo precisa ter pelo menos 5 caracteres.";
   else if (content.length > POST_CONTENT_MAX) fieldErrors.content = "O conteúdo pode ter no máximo 5000 caracteres.";
-  if (requestedGameId !== null && !selectedGame) fieldErrors.gameId = "Selecione um jogo disponível na lista.";
+  if (hasGame && requestedGameId === null) fieldErrors.gameId = "Selecione um jogo válido.";
+  if (hasGame && (gameName.length > 200 || gameSlug.length > 200)) {
+    fieldErrors.gameId = "O nome ou identificador do jogo é muito longo.";
+  }
   if (rawMediaUrl && !mediaUrl) fieldErrors.mediaUrl = "Use uma URL de imagem HTTPS válida.";
   if (spoilerLabel.length > SPOILER_LABEL_MAX) fieldErrors.spoilerLabel = "O rótulo pode ter no máximo 120 caracteres.";
 
@@ -239,9 +252,9 @@ export function validatePost(input, availableGames = []) {
     type,
     title,
     content,
-    gameId: selectedGame ? Number(selectedGame.id) : null,
-    gameName: selectedGame?.name || null,
-    gameSlug: selectedGame?.slug || null,
+    gameId: hasGame ? requestedGameId : null,
+    gameName: hasGame ? gameName || null : null,
+    gameSlug: hasGame ? gameSlug || null : null,
     tags,
     media: mediaUrl ? [{
       type: "image",
@@ -276,10 +289,15 @@ export function normalizeListOptions(options = {}) {
   const type = options.type === "all" || POST_TYPES.includes(options.type) ? options.type : "all";
   const cursorNumber = Number.parseInt(options.cursor, 10);
   const limitNumber = Number.parseInt(options.limit, 10);
+  const gameId = options.gameId === undefined || options.gameId === null ? null : normalizeGameId(options.gameId);
+  if (options.gameId !== undefined && options.gameId !== null && gameId === null) {
+    throw new CommunityError("Jogo inválido.", { code: "invalid-game-id" });
+  }
 
   return {
     tab,
     type,
+    gameId,
     cursor: Number.isFinite(cursorNumber) && cursorNumber >= 0 ? cursorNumber : 0,
     limit: Number.isFinite(limitNumber) ? Math.min(12, Math.max(1, limitNumber)) : 6
   };

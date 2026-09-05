@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Composer tests running</title>
+<link rel="stylesheet" href="../css/community.css">
+<body class="community-page">
+<button id="opener">Criar publicação</button>
+<pre id="results"></pre>
+<script type="module">
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const checks = [];
+function check(condition, label) { checks.push({ label, passed: Boolean(condition) }); if (!condition) throw new Error(label); }
+const requests = [];
+const pending = new Map();
+window.fetch = async (value) => {
+  const url = new URL(value, location.href);
+  if (!url.hostname.includes("rawg.io")) throw new Error("External requests disabled in composer fixture");
+  const query = url.searchParams.get("search");
+  requests.push(query);
+  if (query === "failure") throw new Error("Fixture offline");
+  if (query === "per" || query === "stale" || query === "closing") {
+    await new Promise((resolve) => pending.set(query, resolve));
+  }
+  return new Response(JSON.stringify({ results: [{ id: query === "persona" ? 39 : 40, name: query === "persona" ? "Persona 5 Royal" : query, slug: query, background_image: "", released: "2019-10-31" }] }), { status: 200 });
+};
+try {
+  const { createPostComposer } = await import("../js/community/ui/postComposer.js");
+  const calls = [];
+  let releaseSave;
+  const service = {
+    createPost: async (input) => { calls.push({ mode: "create", input }); await new Promise((resolve) => { releaseSave = resolve; }); return { id: "new-post", ...input }; },
+    updatePost: async (id, input) => { calls.push({ mode: "edit", id, input }); await new Promise((resolve) => { releaseSave = resolve; }); return { id, ...input }; }
+  };
+  const composer = createPostComposer({ service, onSaved: async () => {} });
+  const opener = document.querySelector("#opener");
+  const dialog = document.querySelector(".composer-dialog");
+  const input = document.querySelector("#composer-gameId");
+  const list = document.querySelector(".composer-game-results");
+  const dropdown = document.querySelector(".composer-game-dropdown");
+  const submit = document.querySelector(".composer-form button[type=submit]");
+  const type = (text) => { input.focus(); input.value = text; input.dispatchEvent(new Event("input", { bubbles: true })); };
+  const key = (value) => { const event = new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true }); input.dispatchEvent(event); return event; };
+  const fill = () => { document.querySelector("#composer-title").value = "Título de teste"; document.querySelector("#composer-content").value = "Conteúdo de teste com jogo."; };
+  await composer.openCreate(opener);
+  await pause(30);
+  check(dialog.open && submit.textContent === "Publicar" && submit.type === "submit", "Composer abre imediatamente com Publicar");
+  type(""); await pause(380);
+  type("p"); await pause(380);
+  check(requests.length === 0, "Campo vazio ou curto não consulta RAWG");
+  type("pe"); await pause(100); type("per"); await pause(200);
+  check(requests.length === 0, "Debounce aguarda 350ms desde a última tecla");
+  await pause(190);
+  check(requests.join() === "per", "Debounce gera somente uma chamada");
+  type("persona");
+  pending.get("per")(); await pause(50);
+  check(!list.children.length, "Resposta anterior invalidada imediatamente, antes do debounce novo");
+  await pause(370);
+  check(list.textContent.includes("Persona 5 Royal") && list.textContent.includes("2019"), "Resultados exibem nome e ano");
+  check(key("Enter").defaultPrevented && calls.length === 0, "Enter sem opção ativa não publica");
+  key("ArrowDown");
+  check(input.getAttribute("aria-activedescendant") === list.firstElementChild.id, "Seta usa aria-activedescendant");
+  key("ArrowUp"); key("Enter");
+  check(dropdown.hidden && input.hidden && document.querySelector(".composer-game-chip").textContent.includes("Persona 5 Royal"), "Enter seleciona jogo e fecha resultados");
+  fill(); submit.click(); submit.click();
+  check(calls.length === 1 && submit.disabled && submit.textContent.includes("Publicando"), "Duplo clique cria uma única publicação e desabilita submit");
+  check(JSON.stringify(calls[0].input).includes('"gameId":39') && calls[0].input.gameName === "Persona 5 Royal" && calls[0].input.gameSlug === "persona" && !('background_image' in calls[0].input), "Submit usa snapshot mínimo canônico");
+  releaseSave(); await pause(40);
+  await composer.openCreate(opener, { id: "039", name: "Persona 5 Royal", slug: "persona" });
+  await pause(30);
+  check(input.hidden && document.querySelector(".composer-game-chip").textContent.includes("Persona 5 Royal"), "Hub preseleciona jogo normalizando ID");
+  document.querySelector(".composer-game-remove").click();
+  check(!input.hidden && document.activeElement === input, "Remover chip retorna foco à busca");
+  type("failure"); await pause(420);
+  check(dropdown.textContent.includes("Não foi possível buscar jogos agora.") && !document.querySelector(".composer-game-retry").hidden, "Erro RAWG permanece local e oferece nova tentativa");
+  const beforeRetry = requests.length;
+  document.querySelector(".composer-game-retry").click(); await pause(30);
+  check(requests.length === beforeRetry + 1, "Tentar novamente faz uma nova chamada");
+  fill(); submit.click();
+  check(calls.at(-1).input.gameId === null, "Falha RAWG permite publicar sem associação");
+  releaseSave(); await pause(40);
+  await composer.openEdit({ id: "edit-post", game: { id: 39, name: "Persona 5 Royal", slug: "persona" }, type: "guide", title: "Título anterior", content: "Conteúdo anterior", tags: [], media: [], spoiler: false }, opener);
+  await pause(30);
+  check(submit.textContent === "Salvar alterações" && input.hidden, "Edição preserva jogo e botão Salvar alterações");
+  submit.click();
+  check(calls.at(-1).mode === "edit" && calls.at(-1).input.gameId === 39 && submit.textContent.includes("Salvando"), "Editar usa o mesmo submit com snapshot selecionado");
+  releaseSave(); await pause(40);
+  await composer.openCreate(opener, { id: 123456789, name: "", slug: "" });
+  await pause(30);
+  check(document.querySelector(".composer-game-chip").textContent.includes("Jogo selecionado"), "Hub offline sem snapshot usa somente rótulo neutro");
+  fill(); submit.click();
+  check(calls.at(-1).input.gameId === 123456789 && calls.at(-1).input.gameName === null, "Rótulo neutro não inventa snapshot persistido");
+  releaseSave(); await pause(40);
+  await composer.openCreate(opener);
+  await pause(30);
+  type("stale"); await pause(400); type(""); pending.get("stale")(); await pause(40);
+  check(dropdown.hidden && !list.children.length, "Limpar busca invalida chamada pendente");
+  type("closing"); await pause(400); composer.close(); await composer.openCreate(opener);
+  pending.get("closing")(); await pause(40);
+  check(dropdown.hidden && !list.children.length && input.value === "", "Fechar e reabrir invalida requisição antiga");
+  type("persona"); await pause(400); key("Escape");
+  check(dropdown.hidden && dialog.open, "Primeiro Escape fecha somente resultados");
+  key("Escape"); await pause(30);
+  check(!dialog.open, "Segundo Escape fecha composer");
+  await composer.openCreate(opener);
+  document.querySelector(".dialog-actions .btn-secondary").click(); await pause(30);
+  check(!dialog.open, "Cancelar continua fechando composer");
+  await composer.openCreate(opener);
+  await pause(30);
+  type("persona"); await pause(400);
+  const dialogRect = dialog.getBoundingClientRect();
+  const submitRect = submit.getBoundingClientRect();
+  const pickerRect = document.querySelector(".composer-game-picker").getBoundingClientRect();
+  check(submitRect.height >= 42 && submitRect.bottom <= dialogRect.bottom && submitRect.right <= dialogRect.right && pickerRect.right <= dialogRect.right && document.documentElement.scrollWidth <= innerWidth, `Layout e botão confortáveis sem overflow (${innerWidth}px)`);
+  window.__testResult = { passed: checks.length, failed: 0, checks };
+} catch (error) {
+  window.__testResult = { passed: checks.filter((item) => item.passed).length, failed: 1, failures: [error.message], checks };
+}
+document.querySelector("#results").textContent = JSON.stringify(window.__testResult, null, 2);
+document.title = `Composer: ${window.__testResult.passed} passed, ${window.__testResult.failed} failed`;
+</script>
+</body>
+</html>

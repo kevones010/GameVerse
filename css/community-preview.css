@@ -1,0 +1,51 @@
+/* Social preview only: no changes to the approved game page grid or theme. */
+.game-community-preview[hidden],
+#gameCommunityLink[hidden] {
+  display: none;
+}
+
+.game-community-preview .game-community-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.game-community-preview .game-community-list a {
+  display: grid;
+  gap: 0.3rem;
+  min-height: 48px;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.03);
+  overflow-wrap: anywhere;
+}
+
+.game-community-preview .game-community-list span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.game-community-preview a:focus-visible,
+#gameCommunityLink:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.game-community-preview .btn {
+  max-width: 100%;
+  min-height: 44px;
+  margin-top: 0.6rem;
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.game-community-preview .game-community-skeleton {
+  height: 56px;
+  margin-bottom: 0.65rem;
+  border-radius: 0.8rem;
+  background: linear-gradient(110deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+}

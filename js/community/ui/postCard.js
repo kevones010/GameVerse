@@ -186,17 +186,21 @@ export function createPostCard(post, options) {
   context.appendChild(type);
 
   if (post.game) {
-    const game = document.createElement(post.game.slug || post.game.id ? "a" : "span");
+    const gameName = post.game.name || "Jogo relacionado";
+    const game = document.createElement("a");
     game.className = "post-game";
-    game.textContent = post.game.name;
+    game.textContent = gameName;
     if (game instanceof HTMLAnchorElement) {
-      const identifier = post.game.slug
-        ? `slug=${encodeURIComponent(post.game.slug)}`
-        : `id=${encodeURIComponent(post.game.id)}`;
-      game.href = `game.html?${identifier}`;
-      game.setAttribute("aria-label", `Abrir página de ${post.game.name}`);
+      game.href = `game.html?id=${encodeURIComponent(post.game.id)}`;
+      game.setAttribute("aria-label", `Abrir página de ${gameName}`);
     }
     context.appendChild(game);
+    const hub = document.createElement("a");
+    hub.className = "post-game";
+    hub.textContent = "Ver comunidade";
+    hub.href = `comunidade-jogo.html?gameId=${encodeURIComponent(post.game.id)}`;
+    hub.setAttribute("aria-label", `Ver comunidade de ${gameName}`);
+    context.appendChild(hub);
   }
 
   const body = post.spoiler

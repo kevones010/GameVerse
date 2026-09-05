@@ -24,8 +24,18 @@ function createFilterButton(item, groupName, onSelect) {
   return button;
 }
 
-export function createPostFilters({ tabsContainer, typesContainer, onChange }) {
-  const state = { tab: "for-you", type: "all" };
+export function createPostFilters({
+  tabsContainer,
+  typesContainer,
+  onChange,
+  tabs = TABS,
+  types = TYPES,
+  initialState = {}
+}) {
+  const state = {
+    tab: tabs.some((item) => item.value === initialState.tab) ? initialState.tab : tabs[0].value,
+    type: types.some((item) => item.value === initialState.type) ? initialState.type : types[0].value
+  };
 
   const updateButtons = () => {
     tabsContainer.querySelectorAll("button").forEach((button) => {
@@ -45,7 +55,7 @@ export function createPostFilters({ tabsContainer, typesContainer, onChange }) {
     onChange({ ...state });
   };
 
-  TABS.forEach((item) => {
+  tabs.forEach((item) => {
     tabsContainer.appendChild(createFilterButton(item, "tab", (value) => {
       if (state.tab === value) return;
       state.tab = value;
@@ -53,7 +63,7 @@ export function createPostFilters({ tabsContainer, typesContainer, onChange }) {
     }));
   });
 
-  TYPES.forEach((item) => {
+  types.forEach((item) => {
     typesContainer.appendChild(createFilterButton(item, "type", (value) => {
       if (state.type === value) return;
       state.type = value;
@@ -68,16 +78,16 @@ export function createPostFilters({ tabsContainer, typesContainer, onChange }) {
       return { ...state };
     },
     setType(type) {
-      state.type = TYPES.some((item) => item.value === type) ? type : "all";
+      state.type = types.some((item) => item.value === type) ? type : types[0].value;
       notify();
     },
     setTab(tab) {
-      state.tab = TABS.some((item) => item.value === tab) ? tab : "for-you";
+      state.tab = tabs.some((item) => item.value === tab) ? tab : tabs[0].value;
       notify();
     },
     setState(nextState = {}) {
-      state.tab = TABS.some((item) => item.value === nextState.tab) ? nextState.tab : state.tab;
-      state.type = TYPES.some((item) => item.value === nextState.type) ? nextState.type : state.type;
+      state.tab = tabs.some((item) => item.value === nextState.tab) ? nextState.tab : state.tab;
+      state.type = types.some((item) => item.value === nextState.type) ? nextState.type : state.type;
       notify();
     }
   };
