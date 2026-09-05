@@ -9,6 +9,7 @@ export class CommunityRepository {
   async deletePost() { throw NOT_IMPLEMENTED("deletePost"); }
   async listUsers() { throw NOT_IMPLEMENTED("listUsers"); }
   async getUserById() { throw NOT_IMPLEMENTED("getUserById"); }
+  async updateUser() { throw NOT_IMPLEMENTED("updateUser"); }
   async listComments() { throw NOT_IMPLEMENTED("listComments"); }
   async getCommentById() { throw NOT_IMPLEMENTED("getCommentById"); }
   async createComment() { throw NOT_IMPLEMENTED("createComment"); }
@@ -17,8 +18,10 @@ export class CommunityRepository {
   async listSavedPostsByUser() { throw NOT_IMPLEMENTED("listSavedPostsByUser"); }
   async toggleLike() { throw NOT_IMPLEMENTED("toggleLike"); }
   async toggleSaved() { throw NOT_IMPLEMENTED("toggleSaved"); }
-
-  async followUser() {
-    throw new Error("Seguidores estarão disponíveis em uma fase futura.");
-  }
+  async listFollows() { throw NOT_IMPLEMENTED("listFollows"); }
+  async listFollowersByUser() { throw NOT_IMPLEMENTED("listFollowersByUser"); }
+  async listFollowingByUser() { throw NOT_IMPLEMENTED("listFollowingByUser"); }
+  async toggleFollow() { throw NOT_IMPLEMENTED("toggleFollow"); }
+  async listReportsByUser() { throw NOT_IMPLEMENTED("listReportsByUser"); }
+  async createReport() { throw NOT_IMPLEMENTED("createReport"); }
 }

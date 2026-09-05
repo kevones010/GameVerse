@@ -8,6 +8,7 @@ import { createPostCard } from "./community/ui/postCard.js";
 import { createPostComposer } from "./community/ui/postComposer.js";
 import { createPostFilters } from "./community/ui/postFilters.js";
 import { createToastRegion } from "./community/ui/toast.js";
+import { createReportDialog } from "./community/ui/reportDialog.js";
 
 const SORTS = [
   { value: "trending", label: "Em alta" },
@@ -44,6 +45,7 @@ let feedRequest = 0;
 let statsRequest = 0;
 let initializationPending = false;
 let restoringHistory = false;
+let reportDialog = null;
 
 function element(tag, className = "", text = "") {
   const node = document.createElement(tag);
@@ -210,7 +212,10 @@ function renderCurrentUser(user) {
   avatar.alt = "";
   avatar.width = 32;
   avatar.height = 32;
-  byId("communityUser").replaceChildren(avatar, element("span", "", user.displayName));
+  const userLink = byId("communityUser");
+  userLink.replaceChildren(avatar, element("span", "", user.displayName));
+  userLink.href = `perfil.html?userId=${encodeURIComponent(user.id)}`;
+  userLink.title = "Abrir meu perfil";
 }
 
 async function loadStats() {
@@ -240,7 +245,8 @@ async function loadStats() {
     byId("hubTagsEmpty").hidden = result.tags.length > 0;
     byId("hubCreators").replaceChildren(...result.creators.map((user) => {
       const item = element("li");
-      const content = element("div");
+      const content = element("a");
+      content.href = `perfil.html?userId=${encodeURIComponent(user.id)}`;
       content.append(element("strong", "", user.displayName), element("span", "", countLabel(user.postsCount)));
       item.appendChild(content);
       return item;
@@ -291,7 +297,8 @@ function feedCard(post) {
       try { await composer.openEdit(editablePost, trigger); }
       catch (error) { notify(error.message || "Não foi possível editar a publicação.", "error"); }
     },
-    onDelete: deletePost
+    onDelete: deletePost,
+    onReport(post, trigger) { reportDialog?.open({ type: "post", id: post.id }, trigger); }
   });
 }
 
@@ -354,6 +361,11 @@ async function initializeCommunity() {
     await communityService.initialize();
     currentUser = await communityService.getCurrentUser();
     renderCurrentUser(currentUser);
+    reportDialog ||= createReportDialog({
+      service: communityService,
+      onReported() { notify("Denúncia registrada neste navegador."); },
+      onError(error) { if (error.code !== "validation-error") notify(error.message || "Não foi possível registrar a denúncia.", "error"); }
+    });
     composer ||= createPostComposer({
       service: communityService,
       async onSaved(post, mode) {

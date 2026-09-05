@@ -151,6 +151,20 @@ export class LocalCommunityRepository extends CommunityRepository {
     return users.find((user) => user.id === id) || null;
   }
 
+  async updateUser(userId, changes, actorId) {
+    return this.mutateState((state) => {
+      if (userId !== actorId) {
+        throw new CommunityError("Você só pode editar o próprio perfil.", { code: "forbidden" });
+      }
+      const user = state.users.find((item) => item.id === userId);
+      if (!user) throw new CommunityError("Perfil não encontrado.", { code: "user-not-found" });
+      ["displayName", "bio", "avatar", "updatedAt"].forEach((field) => {
+        if (Object.hasOwn(changes, field)) user[field] = clone(changes[field]);
+      });
+      return user;
+    });
+  }
+
   async listComments(postId) {
     const state = await this.initialize();
     return clone(state.comments.filter((comment) => (
@@ -231,6 +245,79 @@ export class LocalCommunityRepository extends CommunityRepository {
     }).then(async (result) => {
       const post = await this.getPostById(postId);
       return { ...result, savesCount: post?.savesCount || 0 };
+    });
+  }
+
+  async listFollows() {
+    const state = await this.initialize();
+    return clone(state.follows);
+  }
+
+  async listFollowersByUser(userId) {
+    const follows = await this.listFollows();
+    return follows.filter((follow) => follow.followingId === userId);
+  }
+
+  async listFollowingByUser(userId) {
+    const follows = await this.listFollows();
+    return follows.filter((follow) => follow.followerId === userId);
+  }
+
+  async toggleFollow(followerId, followingId, interaction) {
+    return this.mutateState((state) => {
+      if (followerId === followingId) {
+        throw new CommunityError("Você não pode seguir o próprio perfil.", { code: "cannot-follow-self" });
+      }
+      if (!state.users.some((user) => user.id === followerId)) {
+        throw new CommunityError("Usuário atual não encontrado.", { code: "user-not-found" });
+      }
+      if (!state.users.some((user) => user.id === followingId)) {
+        throw new CommunityError("Perfil não encontrado.", { code: "user-not-found" });
+      }
+      const existingIndex = state.follows.findIndex((follow) => (
+        follow.followerId === followerId && follow.followingId === followingId
+      ));
+      if (existingIndex >= 0) {
+        state.follows.splice(existingIndex, 1);
+        return { followed: false, userId: followingId };
+      }
+      state.follows.push({ ...clone(interaction), followerId, followingId });
+      return { followed: true, userId: followingId };
+    });
+  }
+
+  async listReportsByUser(userId) {
+    const state = await this.initialize();
+    return clone(state.reports.filter((report) => report.reporterId === userId));
+  }
+
+  async createReport(report) {
+    return this.mutateState((state) => {
+      if (!state.users.some((user) => user.id === report.reporterId)) {
+        throw new CommunityError("Usuário atual não encontrado.", { code: "user-not-found" });
+      }
+      if (report.targetType === "post") {
+        const post = requirePublishedPost(state, report.targetId);
+        if (post.authorId === report.reporterId) {
+          throw new CommunityError("Você não pode denunciar a própria publicação.", { code: "cannot-report-self" });
+        }
+      } else if (report.targetType === "user") {
+        const target = state.users.find((user) => user.id === report.targetId);
+        if (!target) throw new CommunityError("Perfil não encontrado.", { code: "user-not-found" });
+        if (target.id === report.reporterId) {
+          throw new CommunityError("Você não pode denunciar o próprio perfil.", { code: "cannot-report-self" });
+        }
+      }
+      const duplicate = state.reports.some((item) => (
+        item.reporterId === report.reporterId
+        && item.targetType === report.targetType
+        && item.targetId === report.targetId
+      ));
+      if (duplicate) {
+        throw new CommunityError("Você já registrou uma denúncia para este conteúdo.", { code: "duplicate-report" });
+      }
+      state.reports.push(clone(report));
+      return report;
     });
   }
 }

@@ -1,6 +1,15 @@
 export const COMMUNITY_SCHEMA_VERSION = 2;
 export const POST_TYPES = Object.freeze(["guide", "art", "screenshot", "discussion", "question"]);
-export const FEED_TABS = Object.freeze(["for-you", "trending", "recent", "saved"]);
+export const FEED_TABS = Object.freeze(["for-you", "following", "trending", "recent", "saved"]);
+export const REPORT_REASONS = Object.freeze(["spam", "offensive", "spoiler", "misinformation", "other"]);
+export const PROFILE_AVATARS = Object.freeze([
+  "assets/vee/avatars/vee-avatar-default.webp",
+  "assets/vee/avatars/vee-avatar-happy.webp",
+  "assets/vee/avatars/vee-avatar-blue.webp",
+  "assets/vee/avatars/vee-avatar-purple.webp",
+  "assets/vee/avatars/vee-avatar-green.webp",
+  "assets/vee/avatars/vee-avatar-pink.webp"
+]);
 
 const COLLECTIONS = ["users", "posts", "comments", "likes", "savedPosts", "follows", "reports"];
 const POST_TITLE_MIN = 4;
@@ -11,6 +20,10 @@ const COMMENT_CONTENT_MAX = 1000;
 const SPOILER_LABEL_MAX = 120;
 const TAG_MAX = 5;
 const TAG_LENGTH_MAX = 32;
+const PROFILE_NAME_MIN = 2;
+const PROFILE_NAME_MAX = 32;
+const PROFILE_BIO_MAX = 180;
+const REPORT_DETAILS_MAX = 500;
 
 export class CommunityError extends Error {
   constructor(message, { code = "community-error", fieldErrors = {} } = {}) {
@@ -176,8 +189,21 @@ export function assertCommunityState(state) {
     && typeof savedPost?.postId === "string"
     && typeof savedPost?.userId === "string"
   ));
+  const followsAreValid = state.follows.every((follow) => (
+    typeof follow?.id === "string"
+    && typeof follow?.followerId === "string"
+    && typeof follow?.followingId === "string"
+    && follow.followerId !== follow.followingId
+  ));
+  const reportsAreValid = state.reports.every((report) => (
+    typeof report?.id === "string"
+    && typeof report?.reporterId === "string"
+    && ["post", "user"].includes(report?.targetType)
+    && typeof report?.targetId === "string"
+    && REPORT_REASONS.includes(report?.reason)
+  ));
 
-  if (!usersAreValid || !postsAreValid || !commentsAreValid || !likesAreValid || !savesAreValid) {
+  if (!usersAreValid || !postsAreValid || !commentsAreValid || !likesAreValid || !savesAreValid || !followsAreValid || !reportsAreValid) {
     throw new Error("Usuários, publicações ou interações locais são inválidos.");
   }
 
@@ -282,6 +308,38 @@ export function validateComment(input) {
     content,
     spoiler: Boolean(input?.spoiler)
   };
+}
+
+export function validateProfile(input) {
+  const displayName = asTrimmedText(input?.displayName);
+  const bio = asTrimmedText(input?.bio);
+  const avatar = asTrimmedText(input?.avatar);
+  const fieldErrors = {};
+
+  if (!displayName) fieldErrors.displayName = "Informe um nome para o perfil.";
+  else if (displayName.length < PROFILE_NAME_MIN) fieldErrors.displayName = "O nome precisa ter pelo menos 2 caracteres.";
+  else if (displayName.length > PROFILE_NAME_MAX) fieldErrors.displayName = "O nome pode ter no máximo 32 caracteres.";
+  if (bio.length > PROFILE_BIO_MAX) fieldErrors.bio = "A bio pode ter no máximo 180 caracteres.";
+  if (!PROFILE_AVATARS.includes(avatar)) fieldErrors.avatar = "Escolha um avatar disponível no GameVerse.";
+
+  if (Object.keys(fieldErrors).length) throw new CommunityValidationError(fieldErrors);
+  return { displayName, bio, avatar };
+}
+
+export function validateReport(input) {
+  const targetType = ["post", "user"].includes(input?.targetType) ? input.targetType : "";
+  const targetId = asTrimmedText(input?.targetId);
+  const reason = REPORT_REASONS.includes(input?.reason) ? input.reason : "";
+  const details = asTrimmedText(input?.details);
+  const fieldErrors = {};
+
+  if (!targetType) fieldErrors.targetType = "Tipo de denúncia inválido.";
+  if (!targetId) fieldErrors.targetId = "Conteúdo da denúncia inválido.";
+  if (!reason) fieldErrors.reason = "Escolha um motivo.";
+  if (details.length > REPORT_DETAILS_MAX) fieldErrors.details = "Os detalhes podem ter no máximo 500 caracteres.";
+
+  if (Object.keys(fieldErrors).length) throw new CommunityValidationError(fieldErrors);
+  return { targetType, targetId, reason, details };
 }
 
 export function normalizeListOptions(options = {}) {

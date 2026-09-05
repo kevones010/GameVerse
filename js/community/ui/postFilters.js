@@ -1,5 +1,6 @@
 const TABS = [
   { value: "for-you", label: "Para você" },
+  { value: "following", label: "Seguindo" },
   { value: "trending", label: "Em alta" },
   { value: "recent", label: "Recentes" },
   { value: "saved", label: "Salvos" }

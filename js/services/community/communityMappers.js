@@ -18,7 +18,8 @@ export function mapCommunityUser(user) {
     displayName: user.displayName,
     bio: user.bio || "",
     avatar: user.avatar || "assets/vee/avatars/vee-avatar-default.webp",
-    createdAt: user.createdAt || ""
+    createdAt: user.createdAt || "",
+    updatedAt: user.updatedAt || user.createdAt || ""
   };
 }
 

@@ -9,7 +9,9 @@ import {
   normalizeListOptions,
   POST_TYPES,
   validateComment,
-  validatePost
+  validatePost,
+  validateProfile,
+  validateReport
 } from "./communityValidation.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -46,20 +48,23 @@ function trendingScore(post, now = Date.now()) {
     + recencyPoints(post, now);
 }
 
-function forYouScore(post, now = Date.now()) {
-  return (trendingScore(post, now) * 0.55) + (recencyPoints(post, now) * 4);
+function forYouScore(post, now = Date.now(), personalization = {}) {
+  const followedBonus = personalization.followingIds?.has(post.authorId) ? 18 : 0;
+  const sharedTags = (post.tags || []).filter((tag) => personalization.interestTags?.has(String(tag).toLowerCase())).length;
+  const interestBonus = Math.min(3, sharedTags) * 5;
+  return (trendingScore(post, now) * 0.55) + (recencyPoints(post, now) * 4) + followedBonus + interestBonus;
 }
 
-function sortPosts(posts, tab, savedAtByPost = new Map()) {
+function sortPosts(posts, tab, savedAtByPost = new Map(), personalization = {}) {
   const now = Date.now();
   return [...posts].sort((first, second) => {
-    if (tab === "recent") return timestamp(second.createdAt) - timestamp(first.createdAt);
+    if (tab === "recent" || tab === "following") return timestamp(second.createdAt) - timestamp(first.createdAt);
     if (tab === "saved") {
       return timestamp(savedAtByPost.get(second.id)) - timestamp(savedAtByPost.get(first.id))
         || timestamp(second.createdAt) - timestamp(first.createdAt);
     }
-    const firstScore = tab === "trending" ? trendingScore(first, now) : forYouScore(first, now);
-    const secondScore = tab === "trending" ? trendingScore(second, now) : forYouScore(second, now);
+    const firstScore = tab === "trending" ? trendingScore(first, now) : forYouScore(first, now, personalization);
+    const secondScore = tab === "trending" ? trendingScore(second, now) : forYouScore(second, now, personalization);
     return secondScore - firstScore || timestamp(second.createdAt) - timestamp(first.createdAt);
   });
 }
@@ -107,20 +112,29 @@ export class CommunityService {
     await this.initialize();
     const normalized = normalizeListOptions(options);
     const currentUser = await this.requireCurrentUser();
-    const [posts, users, interactions] = await Promise.all([
+    const [posts, users, interactions, following] = await Promise.all([
       this.repository.listPosts(),
       this.repository.listUsers(),
-      this.interactionContext(currentUser.id)
+      this.interactionContext(currentUser.id),
+      this.repository.listFollowingByUser(currentUser.id)
     ]);
     const usersById = new Map(users.map((user) => [user.id, user]));
+    const followingIds = new Set(following.map((follow) => follow.followingId));
+    const interestTags = new Set();
+    posts.forEach((post) => {
+      if (interactions.likedPostIds.has(post.id) || interactions.savedPostIds.has(post.id)) {
+        (post.tags || []).forEach((tag) => interestTags.add(String(tag).toLowerCase()));
+      }
+    });
     const visiblePosts = posts.filter((post) => (
       post.status === "published"
       && post.visibility === "public"
       && (normalized.gameId === null || normalizeGameId(post.gameId) === normalized.gameId)
       && (normalized.type === "all" || post.type === normalized.type)
       && (normalized.tab !== "saved" || interactions.savedPostIds.has(post.id))
+      && (normalized.tab !== "following" || followingIds.has(post.authorId))
     ));
-    const orderedPosts = sortPosts(visiblePosts, normalized.tab, interactions.savedAtByPost);
+    const orderedPosts = sortPosts(visiblePosts, normalized.tab, interactions.savedAtByPost, { followingIds, interestTags });
     const end = normalized.cursor + normalized.limit;
 
     return {
@@ -204,6 +218,10 @@ export class CommunityService {
     return this.listPosts({ ...options, tab: "saved" });
   }
 
+  async listFollowingPosts(options = {}) {
+    return this.listPosts({ ...options, tab: "following" });
+  }
+
   async listPostsByType(type, options = {}) {
     const normalizedType = POST_TYPES.includes(type) ? type : "all";
     return this.listPosts({ ...options, type: normalizedType });
@@ -217,6 +235,158 @@ export class CommunityService {
   async getCurrentUser() {
     await this.initialize();
     return mapCommunityUser(await this.requireCurrentUser());
+  }
+
+  async getUserProfile(userId) {
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    const [user, posts, followers, following, currentFollowing] = await Promise.all([
+      this.repository.getUserById(userId),
+      this.repository.listPosts(),
+      this.repository.listFollowersByUser(userId),
+      this.repository.listFollowingByUser(userId),
+      this.repository.listFollowingByUser(currentUser.id)
+    ]);
+    if (!user) return null;
+    const publishedPosts = posts.filter((post) => post.authorId === userId && post.status === "published" && post.visibility === "public");
+    const counts = Object.fromEntries(POST_TYPES.map((type) => [type, 0]));
+    publishedPosts.forEach((post) => { counts[post.type] += 1; });
+    return {
+      ...mapCommunityUser(user),
+      postsCount: publishedPosts.length,
+      followersCount: followers.length,
+      followingCount: following.length,
+      counts,
+      isCurrentUser: user.id === currentUser.id,
+      followedByCurrentUser: currentFollowing.some((follow) => follow.followingId === user.id)
+    };
+  }
+
+  async listUserPosts(userId, options = {}) {
+    await this.initialize();
+    const user = await this.repository.getUserById(userId);
+    if (!user) throw new CommunityError("Perfil não encontrado.", { code: "user-not-found" });
+    const normalized = normalizeListOptions({ ...options, tab: options.tab || "recent" });
+    const currentUser = await this.requireCurrentUser();
+    const [posts, interactions] = await Promise.all([
+      this.repository.listPosts(),
+      this.interactionContext(currentUser.id)
+    ]);
+    const visible = posts.filter((post) => post.authorId === userId && post.status === "published" && post.visibility === "public"
+      && (normalized.type === "all" || post.type === normalized.type));
+    const ordered = sortPosts(visible, normalized.tab, interactions.savedAtByPost);
+    const end = normalized.cursor + normalized.limit;
+    return {
+      items: ordered.slice(normalized.cursor, end).map((post) => mapCommunityPost(post, user, {
+        liked: interactions.likedPostIds.has(post.id),
+        saved: interactions.savedPostIds.has(post.id)
+      })),
+      nextCursor: end < ordered.length ? String(end) : null,
+      total: ordered.length
+    };
+  }
+
+  async listCurrentUserLikedPosts(options = {}) {
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    const [posts, users, likes, interactions] = await Promise.all([
+      this.repository.listPosts(),
+      this.repository.listUsers(),
+      this.repository.listLikesByUser(currentUser.id),
+      this.interactionContext(currentUser.id)
+    ]);
+    const likedIds = new Set(likes.map((like) => like.postId));
+    const normalized = normalizeListOptions({ ...options, tab: "recent" });
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    const visible = posts.filter((post) => likedIds.has(post.id) && post.status === "published" && post.visibility === "public"
+      && (normalized.type === "all" || post.type === normalized.type));
+    const ordered = sortPosts(visible, "recent");
+    const end = normalized.cursor + normalized.limit;
+    return {
+      items: ordered.slice(normalized.cursor, end).map((post) => mapCommunityPost(post, usersById.get(post.authorId), {
+        liked: true, saved: interactions.savedPostIds.has(post.id)
+      })),
+      nextCursor: end < ordered.length ? String(end) : null,
+      total: ordered.length
+    };
+  }
+
+  async updateCurrentUserProfile(input) {
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    const normalized = validateProfile(input);
+    const updated = await this.repository.updateUser(currentUser.id, {
+      ...normalized,
+      updatedAt: new Date().toISOString()
+    }, currentUser.id);
+    return mapCommunityUser(updated);
+  }
+
+  async toggleFollow(userId) {
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    if (!userId || userId === currentUser.id) {
+      throw new CommunityError("Você não pode seguir o próprio perfil.", { code: "cannot-follow-self" });
+    }
+    const result = await this.repository.toggleFollow(currentUser.id, userId, {
+      id: createId("follow"),
+      createdAt: new Date().toISOString()
+    });
+    const [followers, following] = await Promise.all([
+      this.repository.listFollowersByUser(userId),
+      this.repository.listFollowingByUser(currentUser.id)
+    ]);
+    return { ...result, followersCount: followers.length, currentUserFollowingCount: following.length };
+  }
+
+  async listFollowers(userId, limit = 12) {
+    await this.initialize();
+    const [follows, users] = await Promise.all([this.repository.listFollowersByUser(userId), this.repository.listUsers()]);
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    return follows.slice().sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt))
+      .map((follow) => mapCommunityUser(usersById.get(follow.followerId))).filter(Boolean).slice(0, limit);
+  }
+
+  async listFollowing(userId, limit = 12) {
+    await this.initialize();
+    const [follows, users] = await Promise.all([this.repository.listFollowingByUser(userId), this.repository.listUsers()]);
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    return follows.slice().sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt))
+      .map((follow) => mapCommunityUser(usersById.get(follow.followingId))).filter(Boolean).slice(0, limit);
+  }
+
+  async listSuggestedUsers(limit = 5) {
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    const [users, posts, follows] = await Promise.all([
+      this.repository.listUsers(),
+      this.repository.listPosts(),
+      this.repository.listFollowingByUser(currentUser.id)
+    ]);
+    const followingIds = new Set(follows.map((follow) => follow.followingId));
+    const activity = new Map();
+    posts.filter((post) => post.status === "published" && post.visibility === "public").forEach((post) => {
+      const score = 1 + Math.min(20, trendingScore(post) / 25);
+      activity.set(post.authorId, (activity.get(post.authorId) || 0) + score);
+    });
+    return users.filter((user) => user.id !== currentUser.id && !followingIds.has(user.id))
+      .map((user) => ({ ...mapCommunityUser(user), activityScore: activity.get(user.id) || 0 }))
+      .sort((a, b) => b.activityScore - a.activityScore || a.displayName.localeCompare(b.displayName, "pt-BR"))
+      .slice(0, limit);
+  }
+
+  async createReport(input) {
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    const normalized = validateReport(input);
+    const report = await this.repository.createReport({
+      id: createId("report"),
+      reporterId: currentUser.id,
+      ...normalized,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    });
+    return { id: report.id, createdAt: report.createdAt };
   }
 
   canEditPost(post, user) {

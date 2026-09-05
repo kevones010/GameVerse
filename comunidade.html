@@ -20,9 +20,9 @@
             <a href="categorias.html" class="nav-btn">Categorias</a>
             <a href="comunidade.html" class="nav-btn active" aria-current="page">Comunidade</a>
             <a href="favoritos.html" class="nav-btn">Favoritos</a>
-            <div class="community-user" id="communityUser" aria-label="Usuário de demonstração">
+            <a class="community-user" id="communityUser" href="perfil.html" aria-label="Abrir meu perfil">
               <span>Comunidade</span>
-            </div>
+            </a>
           </div>
         </nav>
       </header>
@@ -86,6 +86,15 @@
               </div>
               <p>Assuntos recorrentes no feed.</p>
               <ul class="topic-list" id="popularTags"></ul>
+            </section>
+
+            <section class="discovery-card">
+              <div class="discovery-heading">
+                <span aria-hidden="true">+</span>
+                <h2>Pessoas para seguir</h2>
+              </div>
+              <p>Perfis ativos que podem combinar com seu feed.</p>
+              <ul class="discovery-list people-suggestions" id="suggestedUsers"></ul>
             </section>
           </aside>
         </div>

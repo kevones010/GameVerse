@@ -1540,3 +1540,36 @@ a.post-game:hover {
     animation: none;
   }
 }
+
+/* Sprint 8.0D — perfis, follows e descoberta social */
+.community-user { text-decoration: none; }
+.community-user:hover { border-color: rgba(255, 78, 94, 0.45); background: rgba(255, 57, 76, 0.08); }
+.post-author-link { display: grid; gap: 0.08rem; color: inherit; text-decoration: none; border-radius: 8px; }
+.post-author-link:hover strong, .post-author-link:focus-visible strong { color: var(--accent); }
+.post-author-link > span { color: var(--muted); font-size: 0.82rem; }
+.comment-author-link { display: inline-flex; align-items: baseline; gap: 0.42rem; color: inherit; text-decoration: none; border-radius: 6px; }
+.comment-author-link span { color: var(--muted); font-size: 0.78rem; }
+.comment-author-link:hover strong, .comment-author-link:focus-visible strong { color: var(--accent); }
+.people-suggestions { gap: .65rem; }
+.people-suggestion { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .55rem; }
+.people-suggestion-profile { min-width: 0; display: flex !important; align-items: center; gap: .6rem; text-decoration: none; color: var(--text); padding: .35rem !important; border-radius: 12px; }
+.people-suggestion-profile:hover { background: rgba(255,255,255,.04); }
+.people-suggestion-profile img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; }
+.people-suggestion-profile > span { min-width: 0; display: grid; }
+.people-suggestion-profile strong, .people-suggestion-profile small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-suggestion-profile small { color: var(--muted); }
+.discovery-empty { color: var(--muted); font-size: .88rem; line-height: 1.45; }
+.report-dialog { border: 0; padding: 0; background: transparent; color: inherit; max-width: min(560px, calc(100vw - 32px)); width: 100%; }
+.report-dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(5px); }
+.report-dialog-shell { background: #111216; border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 28px 80px rgba(0,0,0,.55); overflow: hidden; }
+.report-copy { margin: 0; padding: 0 1.25rem 1rem; color: var(--muted); line-height: 1.55; }
+.report-form { padding: 0 1.25rem 1.25rem; display: grid; gap: .8rem; }
+.report-form label { font-weight: 800; }
+.report-form select, .report-form textarea { width: 100%; border: 1px solid var(--border); background: #18191e; color: var(--text); border-radius: 12px; padding: .78rem .85rem; font: inherit; }
+.report-form select:focus-visible, .report-form textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.is-following, .profile-actions .is-following { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); color: var(--text); }
+@media (max-width: 560px) {
+  .people-suggestion { grid-template-columns: minmax(0,1fr); }
+  .people-suggestion .btn { width: 100%; }
+  .report-dialog .dialog-actions { grid-template-columns: 1fr; }
+}

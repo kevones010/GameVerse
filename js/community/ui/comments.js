@@ -72,14 +72,18 @@ export function createCommentsSection({
     body.className = "comment-body";
     const header = document.createElement("header");
     header.className = "comment-header";
+    const authorLink = document.createElement("a");
+    authorLink.className = "comment-author-link";
+    authorLink.href = `perfil.html?userId=${encodeURIComponent(comment.author.id)}`;
     const author = document.createElement("strong");
     author.textContent = comment.author.displayName;
     const handle = document.createElement("span");
     handle.textContent = `@${comment.author.handle}`;
+    authorLink.append(author, handle);
     const time = document.createElement("time");
     time.dateTime = comment.createdAt;
     time.textContent = formatCommentTime(comment.createdAt);
-    header.append(author, handle, time);
+    header.append(authorLink, time);
 
     const renderContent = () => {
       const content = document.createElement("p");

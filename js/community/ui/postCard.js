@@ -92,8 +92,9 @@ function setSavedState(button, saved, count) {
   button.textContent = `🔖 ${saved ? "Salvo" : "Salvar"} · ${count}`;
 }
 
-function createOwnerMenu(post, { service, currentUser, onEdit, onDelete }) {
-  if (!service.canEditPost(post, currentUser)) return null;
+function createPostMenu(post, { service, currentUser, onEdit, onDelete, onReport }) {
+  const isOwner = service.canEditPost(post, currentUser);
+  if (!isOwner && !onReport) return null;
 
   const details = document.createElement("details");
   details.className = "post-owner-menu";
@@ -103,24 +104,38 @@ function createOwnerMenu(post, { service, currentUser, onEdit, onDelete }) {
   const menu = document.createElement("div");
   menu.className = "post-owner-menu-popover";
   menu.setAttribute("role", "menu");
-  const edit = document.createElement("button");
-  edit.type = "button";
-  edit.setAttribute("role", "menuitem");
-  edit.textContent = "Editar";
-  const remove = document.createElement("button");
-  remove.type = "button";
-  remove.className = "is-danger";
-  remove.setAttribute("role", "menuitem");
-  remove.textContent = "Excluir";
-  edit.addEventListener("click", () => {
-    details.open = false;
-    onEdit(post, edit);
-  });
-  remove.addEventListener("click", () => {
-    details.open = false;
-    onDelete(post, remove);
-  });
-  menu.append(edit, remove);
+
+  if (isOwner) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.setAttribute("role", "menuitem");
+    edit.textContent = "Editar";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "is-danger";
+    remove.setAttribute("role", "menuitem");
+    remove.textContent = "Excluir";
+    edit.addEventListener("click", () => {
+      details.open = false;
+      onEdit?.(post, edit);
+    });
+    remove.addEventListener("click", () => {
+      details.open = false;
+      onDelete?.(post, remove);
+    });
+    menu.append(edit, remove);
+  } else if (onReport) {
+    const report = document.createElement("button");
+    report.type = "button";
+    report.setAttribute("role", "menuitem");
+    report.textContent = "Denunciar";
+    report.addEventListener("click", () => {
+      details.open = false;
+      onReport(post, report);
+    });
+    menu.appendChild(report);
+  }
+
   details.append(summary, menu);
   return details;
 }
@@ -133,6 +148,7 @@ export function createPostCard(post, options) {
     notify,
     onEdit,
     onDelete,
+    onReport,
     onInteraction
   } = options;
   const article = document.createElement("article");
@@ -151,14 +167,16 @@ export function createPostCard(post, options) {
 
   const author = document.createElement("div");
   author.className = "post-author";
+  const authorLink = document.createElement("a");
+  authorLink.className = "post-author-link";
+  authorLink.href = `perfil.html?userId=${encodeURIComponent(post.author.id)}`;
+  authorLink.setAttribute("aria-label", `Abrir perfil de ${post.author.displayName}`);
   const authorName = document.createElement("strong");
   authorName.textContent = post.author.displayName;
   const handle = document.createElement("span");
   handle.textContent = `@${post.author.handle}`;
-  const profileNotice = document.createElement("span");
-  profileNotice.className = "post-profile-notice";
-  profileNotice.textContent = "Perfis em breve";
-  author.append(authorName, handle, profileNotice);
+  authorLink.append(authorName, handle);
+  author.appendChild(authorLink);
 
   const metadata = document.createElement("div");
   metadata.className = "post-metadata";
@@ -175,8 +193,8 @@ export function createPostCard(post, options) {
   }
 
   header.append(avatar, author, metadata);
-  const ownerMenu = createOwnerMenu(post, { service, currentUser, onEdit, onDelete });
-  if (ownerMenu) header.appendChild(ownerMenu);
+  const postMenu = createPostMenu(post, { service, currentUser, onEdit, onDelete, onReport });
+  if (postMenu) header.appendChild(postMenu);
 
   const context = document.createElement("div");
   context.className = "post-context";
