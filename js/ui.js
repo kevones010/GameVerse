@@ -1,6 +1,18 @@
 import { escapeHtml, formatDate, observeLazyImages } from "./utils.js";
 import { DESCRIPTION_BY_SLUG } from "../data/descriptions-pt.js";
 import { navigateWithVee } from "./motion.js";
+import { readFavorites, readRating, readAnalysis, writePersonalData, removePersonalData } from "./services/gameStorage.js";
+
+function storageNotice(container, message) {
+  let notice = container.querySelector("[data-storage-notice]");
+  if (!notice) {
+    notice = document.createElement("p");
+    notice.dataset.storageNotice = "";
+    notice.setAttribute("role", "status");
+    container.appendChild(notice);
+  }
+  notice.textContent = message;
+}
 
 function displayValue(value) {
   if (value === undefined || value === null || value === "") return "—";
@@ -40,7 +52,7 @@ export function renderError(message) {
   description.insertAdjacentHTML("afterend", '<div class="error-actions"><button class="btn btn-secondary" type="button" onclick="location.reload()">Tentar novamente</button> <a class="btn btn-primary" href="index.html">Voltar para Home</a></div>');
 }
 
-export function renderHeader(game, suggestions = []) {
+export function renderHeader(game) {
   const header = document.getElementById("header");
   header.innerHTML = `
     <nav class="navbar">
@@ -66,58 +78,22 @@ export function renderHeader(game, suggestions = []) {
     <div class="search-suggestions" id="searchSuggestions"></div>
   `;
 
-  const searchInput = document.getElementById("searchInput");
-  const suggestionsBox = document.getElementById("searchSuggestions");
-
-  const updateSuggestions = () => {
-    const term = searchInput.value.trim();
-    if (!term) {
-      suggestionsBox.innerHTML = "";
-      suggestionsBox.classList.remove("visible");
-      return;
-    }
-
-    const html = suggestions
-      .slice(0, 4)
-      .map((item) => `<button class="suggestion-item" data-id="${item.id}" data-slug="${escapeHtml(item.slug || "")}">${escapeHtml(item.name)}</button>`)
-      .join("");
-
-    suggestionsBox.innerHTML = html;
-    suggestionsBox.classList.toggle("visible", Boolean(html));
-  };
-
-  searchInput.addEventListener("input", updateSuggestions);
-  searchInput.addEventListener("focus", updateSuggestions);
-  searchInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      const query = searchInput.value.trim();
-      if (query) {
-        navigateWithVee(`game.html?slug=${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}`);
-      }
-    }
-  });
-  suggestionsBox.addEventListener("click", (event) => {
-    const target = event.target.closest(".suggestion-item");
-    if (!target) return;
-    const id = target.getAttribute("data-id");
-    const slug = target.getAttribute("data-slug");
-    if (slug) {
-      navigateWithVee(`game.html?slug=${encodeURIComponent(slug)}`);
-    } else if (id) {
-      navigateWithVee(`game.html?id=${id}`);
-    }
-  });
-
   if (game) {
     document.title = `${game.name} | GameVerse`;
   }
+}
+
+export function renderSearchSuggestions(suggestions = []) {
+  const box = document.getElementById("searchSuggestions");
+  box.innerHTML = suggestions.map(item => `<button type="button" class="suggestion-item" data-id="${item.id}">${escapeHtml(item.name)}</button>`).join("");
+  box.classList.toggle("visible", Boolean(suggestions.length));
 }
 
 export function renderHero(game) {
   const hero = document.getElementById("hero");
   const background = game.background_image_additional || game.background_image || "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1600&q=80";
   const poster = game.background_image || game.background_image_additional || "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=800&q=80";
-  const favorites = JSON.parse(localStorage.getItem("gameverse-favorites") || "[]");
+  const { value: favorites, available } = readFavorites();
   const isFavorite = favorites.some((item) => item.id === game.id);
 
   const cover = document.getElementById("game-cover");
@@ -141,11 +117,17 @@ export function renderHero(game) {
 
   const favoriteButton = document.getElementById("favoriteButton");
   favoriteButton.textContent = isFavorite ? "★ Favoritado" : "★ Favoritar";
+  favoriteButton.disabled = !available;
+  if (!available) favoriteButton.textContent = "Favoritos indisponíveis";
   favoriteButton.onclick = () => {
-    const favorites = JSON.parse(localStorage.getItem("gameverse-favorites") || "[]");
+    const { value: favorites, available } = readFavorites();
+    if (!available) { renderHero(game); return; }
     const exists = favorites.some((item) => item.id === game.id);
     const next = exists ? favorites.filter((item) => item.id !== game.id) : [...favorites, { id: game.id, slug: game.slug }];
-    localStorage.setItem("gameverse-favorites", JSON.stringify(next));
+    if (!writePersonalData("gameverse-favorites", JSON.stringify(next))) {
+      favoriteButton.textContent = "Não foi possível salvar favorito";
+      return;
+    }
     renderHero(game);
   };
   document.getElementById("shareButton").onclick = async () => {
@@ -257,7 +239,7 @@ export function renderPrices(stores) {
 
 export function renderRating(gameId, game = {}) {
   const rating = document.getElementById("game-rating");
-  const savedRating = Number(localStorage.getItem(`gameverse-rating-${gameId}`) || 0);
+  const { value: savedRating, available } = readRating(gameId);
 
   rating.innerHTML = `<div class="rating-summary"><strong>${Number.isFinite(Number(game.rating)) && Number(game.rating) > 0 ? `${Number(game.rating).toFixed(1)} / 5` : "—"}</strong><span>RAWG · ${displayNumber(game.ratings_count)} avaliações</span></div><div class="stars" id="stars" aria-label="Escolha sua nota"></div><p class="rating-help">Sua nota: <strong>${savedRating ? `${savedRating}/5` : "—"}</strong></p>`;
 
@@ -268,6 +250,7 @@ export function renderRating(gameId, game = {}) {
     const button = document.createElement("button");
     button.className = "star-btn";
     button.type = "button";
+    button.disabled = !available;
     button.innerHTML = "★";
 
     button.addEventListener("mouseenter", () => {
@@ -284,7 +267,10 @@ export function renderRating(gameId, game = {}) {
 
     button.addEventListener("click", () => {
       const value = index + 1;
-      localStorage.setItem(`gameverse-rating-${gameId}`, String(value));
+      if (!writePersonalData(`gameverse-rating-${gameId}`, String(value))) {
+        storageNotice(rating, "Não foi possível salvar sua nota agora.");
+        return;
+      }
       renderRating(gameId, game);
     });
 
@@ -295,24 +281,28 @@ export function renderRating(gameId, game = {}) {
   buttons.forEach((button, index) => {
     button.classList.toggle("active", index < savedRating);
   });
+  if (!available) storageNotice(rating, "Sua nota local não pôde ser carregada.");
 }
 
-export function renderAnalysis(gameId) {
+export function renderAnalysis(gameId, editing = false) {
   const analysis = document.getElementById("game-review");
-  const savedReview = JSON.parse(localStorage.getItem(`gameverse-analysis-${gameId}`) || "null") || { user: "Visitante", date: new Date().toLocaleDateString("pt-BR"), text: "" };
+  const stored = readAnalysis(gameId);
+  const savedReview = stored.value || { user: "Visitante", date: new Date().toLocaleDateString("pt-BR"), text: "" };
+  const deleteReview = () => {
+    if (!removePersonalData(`gameverse-analysis-${gameId}`)) {
+      storageNotice(analysis, "Não foi possível excluir sua análise agora.");
+      return;
+    }
+    renderAnalysis(gameId);
+  };
 
-  if (savedReview.text) {
+  if (savedReview.text && !editing) {
     analysis.innerHTML = `<article class="review-card"><div class="review-author"><span class="review-avatar">G</span><div><strong>${escapeHtml(savedReview.user || "Visitante")}</strong><span>${escapeHtml(savedReview.date || "")}</span></div></div><p>${escapeHtml(savedReview.text)}</p><div class="analysis-actions"><button type="button" class="btn btn-secondary" id="editAnalysis">Editar</button><button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button></div></article>`;
     document.getElementById("editAnalysis").addEventListener("click", () => {
-      localStorage.setItem(`gameverse-analysis-editing-${gameId}`, "true");
-      renderAnalysis(gameId);
+      renderAnalysis(gameId, true);
     });
-    document.getElementById("deleteAnalysis").addEventListener("click", () => {
-      localStorage.removeItem(`gameverse-analysis-${gameId}`);
-      renderAnalysis(gameId);
-    });
-    if (!localStorage.getItem(`gameverse-analysis-editing-${gameId}`)) return;
-    localStorage.removeItem(`gameverse-analysis-editing-${gameId}`);
+    document.getElementById("deleteAnalysis").addEventListener("click", deleteReview);
+    return;
   }
 
   analysis.innerHTML = `<form class="analysis-form" id="analysisForm">
@@ -328,19 +318,24 @@ export function renderAnalysis(gameId) {
     </form>`;
 
   const form = document.getElementById("analysisForm");
+  if (!stored.available) {
+    [...form.elements].forEach(field => { field.disabled = true; });
+    storageNotice(analysis, "Sua análise local não pôde ser carregada. Os dados foram preservados.");
+  }
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!readAnalysis(gameId).available) return;
     const value = document.getElementById("analysisText").value;
     const user = document.getElementById("analysisUser").value || "Visitante";
     const payload = { user, date: new Date().toLocaleDateString("pt-BR"), text: value };
-    localStorage.setItem(`gameverse-analysis-${gameId}`, JSON.stringify(payload));
+    if (!writePersonalData(`gameverse-analysis-${gameId}`, JSON.stringify(payload))) {
+      storageNotice(analysis, "Não foi possível salvar sua análise agora.");
+      return;
+    }
     renderAnalysis(gameId);
   });
 
-  document.getElementById("deleteAnalysis").addEventListener("click", () => {
-    localStorage.removeItem(`gameverse-analysis-${gameId}`);
-    renderAnalysis(gameId);
-  });
+  document.getElementById("deleteAnalysis").addEventListener("click", deleteReview);
 }
 
 export function renderSimilar(games) {

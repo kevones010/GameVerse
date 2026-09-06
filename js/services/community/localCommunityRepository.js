@@ -8,6 +8,10 @@ import {
 
 export const COMMUNITY_STORAGE_KEY = "gameverse-community:v1";
 
+// Share the queue between repositories using the same storage in this page.
+// Each mutation reads fresh data; cross-tab transactions belong to the backend.
+const mutationQueues = new WeakMap();
+
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
@@ -87,10 +91,16 @@ export class LocalCommunityRepository extends CommunityRepository {
   }
 
   async mutateState(mutator) {
-    const state = await this.initialize();
-    const result = mutator(state);
-    this.writeState(state);
-    return clone(result);
+    const previous = mutationQueues.get(this.storage) || Promise.resolve();
+    const mutation = previous.then(async () => {
+      const state = await this.initialize();
+      const result = mutator(state);
+      this.writeState(state);
+      return clone(result);
+    });
+    // Preserve rejection for the caller while keeping the next mutation usable.
+    mutationQueues.set(this.storage, mutation.catch(() => {}));
+    return mutation;
   }
 
   async listPosts() {

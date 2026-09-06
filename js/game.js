@@ -1,6 +1,7 @@
 import {
   renderSkeletons,
   renderHeader,
+  renderSearchSuggestions,
   renderHero,
   renderSynopsis,
   renderTrailer,
@@ -17,26 +18,94 @@ import {
 import { getGame, getScreenshots, getGameTrailers, getStores, getSuggestions, getSearch } from "./services/rawgService.js";
 import { getYouTubeTrailer } from "./services/youtubeService.js";
 import { getQueryParam, debounce } from "./utils.js";
+import { navigateWithVee } from "./motion.js";
 
 const CACHE_KEY = "gameverse-cache-v2";
 
 function getCache() {
   try {
-    return JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}");
-  } catch (error) {
-    return {};
-  }
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    const cache = raw === null ? {} : JSON.parse(raw);
+    return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : null;
+  } catch { return null; }
 }
 
 function setCache(key, value) {
-  const cache = getCache();
-  cache[key] = value;
-  sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  try {
+    const cache = getCache();
+    if (!cache) return;
+    cache[key] = value;
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch { /* A full or unavailable cache must not affect the game. */ }
 }
 
 function getCachedValue(key) {
-  const cache = getCache();
-  return cache[key];
+  const value = getCache()?.[key];
+  if (key.startsWith("game:")) {
+    const identifier = key.slice(5);
+    const matches = /^\d+$/.test(identifier) ? String(value?.id) === identifier : value?.slug === identifier;
+    const arrays = ["genres", "platforms", "developers", "publishers"];
+    const strings = ["slug", "description_raw", "background_image", "background_image_additional", "released", "website"];
+    return matches && Number.isSafeInteger(value?.id) && value.id > 0 && typeof value.name === "string"
+      && arrays.every(field => value[field] == null || Array.isArray(value[field]))
+      && strings.every(field => value[field] == null || typeof value[field] === "string") ? value : undefined;
+  }
+  return Array.isArray(value) && value.every(item => item && typeof item === "object"
+    && (!key.startsWith("screenshots:") || typeof item.image === "string")) ? value : undefined;
+}
+
+function setupGameSearch() {
+  const input = document.getElementById("searchInput");
+  const box = document.getElementById("searchSuggestions");
+  let requestVersion = 0;
+  let suggestions = [];
+  const show = (items = []) => {
+    suggestions = items.filter(item => Number.isSafeInteger(item?.id) && item.id > 0 && typeof item.name === "string");
+    renderSearchSuggestions(suggestions);
+  };
+  const search = debounce(async (query, version) => {
+    if (!query || version !== requestVersion) return;
+    const results = await getSearch(query);
+    if (version === requestVersion && input.value.trim() === query) show(results.slice(0, 6));
+  }, 300);
+  input.addEventListener("input", () => {
+    const version = ++requestVersion;
+    show();
+    search(input.value.trim(), version);
+  });
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const exact = suggestions.filter(item => item.name.toLocaleLowerCase() === input.value.trim().toLocaleLowerCase());
+      const selected = suggestions.length === 1 ? suggestions[0] : exact.length === 1 ? exact[0] : null;
+      if (selected) navigateWithVee(`game.html?id=${selected.id}`);
+    } else if (event.key === "ArrowDown" && suggestions.length) {
+      event.preventDefault();
+      box.querySelector("button")?.focus();
+    }
+  });
+  box.addEventListener("click", event => {
+    const button = event.target.closest("button[data-id]");
+    const selected = suggestions.find(item => item.id === Number(button?.dataset.id));
+    if (selected) navigateWithVee(`game.html?id=${selected.id}`);
+  });
+  box.addEventListener("keydown", event => {
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+    const buttons = [...box.querySelectorAll("button")];
+    const index = buttons.indexOf(document.activeElement);
+    if (index < 0) return;
+    event.preventDefault();
+    buttons[(index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length].focus();
+  });
+  document.getElementById("header").addEventListener("keydown", event => {
+    if (event.key !== "Escape" || (!box.contains(event.target) && event.target !== input)) return;
+    ++requestVersion;
+    show();
+    input.focus();
+  });
+  document.addEventListener("click", event => {
+    if (event.target !== input && !box.contains(event.target)) { ++requestVersion; show(); }
+  });
 }
 
 function resolveIdentifier() {
@@ -104,7 +173,9 @@ async function loadGamePage() {
       console.info("[TRAILER] RAWG");
     } else {
       console.info("[TRAILER] YouTube fallback");
-      const youtubeResult = await Promise.allSettled([getYouTubeTrailer(game.name)]);
+      const youtubeResult = await Promise.allSettled([getYouTubeTrailer({
+        gameId: game.id, gameName: game.name, gameSlug: game.slug
+      })]);
       youtubeTrailer = youtubeResult[0].status === "fulfilled" ? youtubeResult[0].value : null;
     }
 
@@ -131,20 +202,7 @@ async function loadGamePage() {
     renderFooter();
     requestAnimationFrame(() => { void loadCommunityPreview(game.id); });
 
-    const searchInput = document.getElementById("searchInput");
-    if (searchInput) {
-      const handleSearch = debounce(async (event) => {
-        const query = event.target.value.trim();
-        if (!query) {
-          renderHeader(game);
-          return;
-        }
-        const suggestions = await getSearch(query);
-        renderHeader(game, suggestions.slice(0, 6));
-      }, 300);
-
-      searchInput.addEventListener("input", handleSearch);
-    }
+    setupGameSearch();
   } catch (error) {
     console.error(error);
     renderError("Jogo não encontrado.");

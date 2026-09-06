@@ -1,7 +1,7 @@
 import { getLocalConfig } from "./localConfig.js";
 
 const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
-const CACHE_PREFIX = "gameverse-youtube-trailer:";
+const CACHE_PREFIX = "gameverse-youtube-trailer:v2:";
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 
 const POSITIVE_TERMS = [
@@ -39,10 +39,33 @@ function includesTerm(text, term) {
   return ` ${text} `.includes(` ${term} `);
 }
 
-function scoreResult(item, gameName) {
+const TITLE_STOP_WORDS = new Set(["the", "a", "an", "and", "of", "for", "to", "in", "official", "trailer", "launch", "release"]);
+
+function gameContext(value) {
+  const gameId = Number(value?.gameId);
+  if (!value || typeof value !== "object" || !/^\d+$/.test(String(value.gameId))
+    || !Number.isSafeInteger(gameId) || gameId <= 0 || typeof value.gameName !== "string" || !value.gameName.trim()) {
+    throw new TypeError("Informe o contexto do jogo com gameId RAWG e gameName.");
+  }
+  return { gameId, gameName: value.gameName.trim(), gameSlug: typeof value.gameSlug === "string" ? value.gameSlug : "" };
+}
+
+function scoreResult(item, context) {
   const title = normalizeText(item?.snippet?.title);
-  const normalizedGameName = normalizeText(gameName);
-  let score = title.includes(normalizedGameName) ? 50 : 0;
+  const normalizedGameName = normalizeText(context.gameName);
+  const tokens = normalizedGameName.split(" ").filter(token => !TITLE_STOP_WORDS.has(token) && !/^(19|20)\d{2}$/.test(token));
+  // Marketing words cannot compensate for a missing game name or sequel number.
+  if (!tokens.length || !tokens.every(token => includesTerm(title, token))) return -Infinity;
+
+  const slugYear = context.gameSlug.match(/-((?:19|20)\d{2})$/)?.[1];
+  const editionYear = slugYear || normalizedGameName.match(/\b(?:19|20)\d{2}\b/)?.[0];
+  if (editionYear) {
+    const titleYears = title.match(/\b(?:19|20)\d{2}\b/g) || [];
+    if (titleYears.some(year => year !== editionYear)) return -Infinity;
+    const snippet = normalizeText(`${item?.snippet?.title || ""} ${item?.snippet?.description || ""}`);
+    if (!includesTerm(snippet, editionYear) && !(slugYear && includesTerm(title, "remake"))) return -Infinity;
+  }
+  let score = 50;
 
   POSITIVE_TERMS.forEach(([term, points]) => {
     if (title.includes(term)) score += points;
@@ -55,8 +78,8 @@ function scoreResult(item, gameName) {
   return score;
 }
 
-function getCacheKey(gameName) {
-  return `${CACHE_PREFIX}${normalizeText(gameName)}`;
+function getCacheKey(context) {
+  return `${CACHE_PREFIX}${context.gameId}`;
 }
 
 function toTrailer(payload) {
@@ -71,19 +94,20 @@ function toTrailer(payload) {
   };
 }
 
-function getCachedTrailer(gameName) {
+function getCachedTrailer(context) {
   try {
-    const cached = JSON.parse(sessionStorage.getItem(getCacheKey(gameName)) || "null");
-    if (!cached?.timestamp || Date.now() - cached.timestamp > CACHE_TTL) return null;
+    const cached = JSON.parse(sessionStorage.getItem(getCacheKey(context)) || "null");
+    if (cached?.gameId !== context.gameId || !cached?.timestamp || Date.now() - cached.timestamp > CACHE_TTL) return null;
     return toTrailer(cached);
   } catch (error) {
     return null;
   }
 }
 
-function cacheTrailer(gameName, trailer) {
+function cacheTrailer(context, trailer) {
   try {
-    sessionStorage.setItem(getCacheKey(gameName), JSON.stringify({
+    sessionStorage.setItem(getCacheKey(context), JSON.stringify({
+      gameId: context.gameId,
       videoId: trailer.videoId,
       title: trailer.title,
       thumbnail: trailer.thumbnail,
@@ -94,14 +118,14 @@ function cacheTrailer(gameName, trailer) {
   }
 }
 
-export async function getYouTubeTrailer(gameName) {
-  const normalizedGameName = String(gameName || "").trim();
-  if (!normalizedGameName) return null;
+/** @param {{gameId: number|string, gameName: string, gameSlug?: string}} game */
+export async function getYouTubeTrailer(game) {
+  const context = gameContext(game);
 
   const { YOUTUBE_API_KEY } = await getLocalConfig();
   if (!YOUTUBE_API_KEY) return null;
 
-  const cachedTrailer = getCachedTrailer(normalizedGameName);
+  const cachedTrailer = getCachedTrailer(context);
   if (cachedTrailer) return cachedTrailer;
 
   const url = new URL(YOUTUBE_SEARCH_URL);
@@ -109,7 +133,8 @@ export async function getYouTubeTrailer(gameName) {
   url.searchParams.set("type", "video");
   url.searchParams.set("maxResults", "5");
   url.searchParams.set("videoEmbeddable", "true");
-  url.searchParams.set("q", `${normalizedGameName} official trailer`);
+  const editionYear = context.gameSlug.match(/-((?:19|20)\d{2})$/)?.[1];
+  url.searchParams.set("q", `${context.gameName}${editionYear ? ` ${editionYear}` : ""} official trailer`);
   url.searchParams.set("key", YOUTUBE_API_KEY);
 
   try {
@@ -122,7 +147,7 @@ export async function getYouTubeTrailer(gameName) {
     const data = await response.json();
     const candidates = (Array.isArray(data?.items) ? data.items : [])
       .filter((item) => item?.id?.videoId && item?.snippet?.title)
-      .map((item) => ({ item, score: scoreResult(item, normalizedGameName) }))
+      .map((item) => ({ item, score: scoreResult(item, context) }))
       .sort((first, second) => second.score - first.score);
 
     const best = candidates[0];
@@ -142,7 +167,7 @@ export async function getYouTubeTrailer(gameName) {
         || ""
     });
 
-    cacheTrailer(normalizedGameName, trailer);
+    cacheTrailer(context, trailer);
     return trailer;
   } catch (error) {
     console.info("[YouTube Trailer] sem resultado");

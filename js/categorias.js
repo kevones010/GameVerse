@@ -4,14 +4,15 @@ import { navigateWithVee } from './motion.js';
 
 const FILTERS = [
   { label: 'Todos', key: 'genres', value: '' },
-  { label: 'RPG/JRPG', key: 'genres', value: '5' },
-  { label: 'Ação', key: 'genres', value: '4' },
-  { label: 'Indies', key: 'genres', value: '51' },
-  { label: 'Aventura', key: 'genres', value: '7' },
-  { label: 'Terror', key: 'genres', value: '40' },
-  { label: 'Nintendo', key: 'platforms', value: '7' },
-  { label: 'PlayStation', key: 'platforms', value: '2' },
-  { label: 'PC', key: 'platforms', value: '1' }
+  { label: 'RPG/JRPG', key: 'genres', value: 'role-playing-games-rpg' },
+  { label: 'Ação', key: 'genres', value: 'action' },
+  { label: 'Indies', key: 'genres', value: 'indie' },
+  { label: 'Aventura', key: 'genres', value: 'adventure' },
+  // Horror is a RAWG tag; console brands use parent platforms, not device IDs.
+  { label: 'Terror', key: 'tags', value: 'horror' },
+  { label: 'Nintendo', key: 'parent_platforms', value: '7' },
+  { label: 'PlayStation', key: 'parent_platforms', value: '2' },
+  { label: 'PC', key: 'parent_platforms', value: '1' }
 ];
 
 let currentPage = 1;

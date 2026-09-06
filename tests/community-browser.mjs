@@ -14,14 +14,28 @@ const games = [
   { id: 963212, name: 'Metaphor: ReFantazio', slug: 'metaphor-refantazio' },
   { id: 49, name: 'Persona 5', slug: 'persona-5' }
 ];
-const seed = createCommunitySeed();
+const fixtureDate = new Date('2026-01-15T12:00:00.000Z');
+const seed = createCommunitySeed(fixtureDate);
 for (let index = 0; index < 9; index++) seed.posts.push({
   ...seed.posts[0], id: `browser-post-${index}`, type: ['guide', 'art', 'screenshot', 'discussion', 'question'][index % 5],
   title: `Publicação de teste ${index}`, content: 'Conteúdo de teste seguro.',
-  createdAt: new Date(Date.now() + index * 1000).toISOString(), likesCount: 0, savesCount: 0, commentsCount: 0
+  createdAt: new Date(fixtureDate.getTime() - (index + 1) * 1000).toISOString(), likesCount: 0, savesCount: 0, commentsCount: 0
+});
+seed.posts.push({
+  ...seed.posts[0], id: 'browser-spoiler-post', type: 'discussion',
+  title: 'Título protegido da fixture', content: 'Conteúdo protegido da fixture.',
+  spoiler: true, spoilerLabel: 'Final do jogo', createdAt: fixtureDate.toISOString(),
+  likesCount: 0, savesCount: 0, commentsCount: 0
 });
 
 function installFixtures(games, seed) {
+  // Keep seed, ranking and newly created posts independent of the machine clock.
+  const NativeDate = Date;
+  const now = NativeDate.parse('2026-01-16T12:00:00.000Z');
+  window.Date = class extends NativeDate {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  };
   window.__errors = [];
   window.addEventListener('error', event => { if (event.error) window.__errors.push(event.error.name); });
   window.addEventListener('unhandledrejection', event => window.__errors.push(event.reason?.name || 'rejection'));
@@ -52,6 +66,7 @@ const browser = await startBrowser();
 const { page } = browser;
 const passed = [];
 const failed = [];
+let createdPostId;
 async function check(name, callback) {
   try { await callback(); passed.push(name); console.log(`PASS ${name}`); }
   catch (error) { failed.push({ name, error: error.message }); console.log(`FAIL ${name}: ${error.message}`); }
@@ -106,30 +121,39 @@ try {
     await page.waitFor(`document.querySelector('${card} .comments-list').textContent.includes('Comentário de teste do hub')`);
   });
   await check('Spoilers permanecem ocultos até ação explícita', async () => {
-    await click('#postFilters [data-value="discussion"]'); await ready();
-    assert.ok(await page.evaluate(`document.querySelector('.spoiler-content') || document.querySelector('.spoiler-gate')`));
-    assert.equal(await page.evaluate(`document.querySelector('[data-post-id="post-palacios-preferidos"] .post-title') !== null`), false);
+    await click('#postFilters [data-value="discussion"]'); await page.waitFor(selectedFilter('discussion'));
+    const card = '[data-post-id="browser-spoiler-post"]';
+    assert.ok(await page.evaluate(`document.querySelector('${card} .spoiler-box')`));
+    assert.equal(await page.evaluate(`document.querySelector('${card} .post-title') !== null`), false);
+    assert.equal(await page.evaluate(`document.querySelector('${card} .post-content') !== null`), false);
+    await click(`${card} .spoiler-reveal`);
+    assert.equal(await page.evaluate(`document.querySelector('${card} .post-title').textContent`), 'Título protegido da fixture');
+    assert.equal(await page.evaluate(`document.querySelector('${card} .post-content').textContent`), 'Conteúdo protegido da fixture.');
   });
   await check('Criar pelo hub, pré-seleção canônica e submit único', async () => {
     await click('#createPostButton');
     await page.waitFor(`document.querySelector('.composer-dialog').open`);
     assert.equal(await page.evaluate(`document.querySelector('.composer-game-chip .composer-game-name').textContent`), 'Persona 5 Royal');
     await page.evaluate(`document.querySelector('#composer-title').value='Post criado pelo hub'; document.querySelector('#composer-content').value='Conteúdo publicado pelo hub'; document.querySelector('.composer-form button[type="submit"]').click(); document.querySelector('.composer-form button[type="submit"]').click()`);
-    await page.waitFor(`!document.querySelector('.composer-dialog').open && document.querySelector('.post-title')?.textContent === 'Post criado pelo hub'`);
+    await page.waitFor(`!document.querySelector('.composer-dialog').open && [...document.querySelectorAll('.post-title')].some(title => title.textContent === 'Post criado pelo hub')`);
     const posts = await page.evaluate(`JSON.parse(localStorage.getItem('gameverse-community:v1')).posts.filter(p => p.title === 'Post criado pelo hub')`);
     assert.equal(posts.length, 1); assert.equal(posts[0].gameId, 339958);
+    createdPostId = posts[0].id;
   });
   await check('Editar e excluir post próprio pelo hub', async () => {
-    await click('.post-card .post-owner-menu summary');
-    await click('.post-card .post-owner-menu button:not(.is-danger)');
+    assert.ok(createdPostId, 'A criação anterior deve produzir exatamente um post.');
+    const card = `[data-post-id="${createdPostId}"]`;
+    await click(`${card} .post-owner-menu summary`);
+    await click(`${card} .post-owner-menu button:not(.is-danger)`);
     await page.waitFor(`document.querySelector('.composer-dialog').open`);
     assert.equal(await page.evaluate(`document.querySelector('.composer-form button[type="submit"]').textContent`), 'Salvar alterações');
     await page.evaluate(`document.querySelector('#composer-title').value='Post editado pelo hub'; document.querySelector('.composer-form button[type="submit"]').click()`);
-    await page.waitFor(`!document.querySelector('.composer-dialog').open && document.querySelector('.post-title')?.textContent === 'Post editado pelo hub'`);
-    await click('.post-card .post-owner-menu summary'); await click('.post-card .post-owner-menu .is-danger');
+    await page.waitFor(`!document.querySelector('.composer-dialog').open && document.querySelector('${card} .post-title')?.textContent === 'Post editado pelo hub'`);
+    await click(`${card} .post-owner-menu summary`); await click(`${card} .post-owner-menu .is-danger`);
     await page.waitFor(`document.querySelector('.confirm-dialog').open`);
     await click('.confirm-dialog .btn-danger');
-    await page.waitFor(`![...document.querySelectorAll('.post-title')].some(p => p.textContent === 'Post editado pelo hub')`);
+    await page.waitFor(`!document.querySelector('${card}')`);
+    assert.equal(await page.evaluate(`JSON.parse(localStorage.getItem('gameverse-community:v1')).posts.find(p=>p.id===${JSON.stringify(createdPostId)}).status`), 'deleted');
   });
   await check('Refresh e back/forward mantêm filtros', async () => {
     await click('#postFilters [data-value="guide"]'); await ready();

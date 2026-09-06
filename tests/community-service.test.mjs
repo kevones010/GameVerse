@@ -14,6 +14,67 @@ function fixture() {
 }
 const input = overrides => ({ type: 'guide', title: 'Guia de teste', content: 'Conteúdo suficiente para publicação.', ...overrides });
 
+test('mutações concorrentes preservam duas publicações confirmadas', async () => {
+  const { service, repository } = fixture();
+  const posts = await Promise.all([
+    service.createPost(input({ title: 'Publicação concorrente A' })),
+    service.createPost(input({ title: 'Publicação concorrente B' }))
+  ]);
+  assert.notEqual(posts[0].id, posts[1].id);
+  for (const post of posts) assert.equal((await repository.getPostById(post.id))?.title, post.title);
+});
+
+test('like e save simultâneos permanecem associados ao post', async () => {
+  const { service } = fixture();
+  const post = await service.createPost(input());
+  const [like, save] = await Promise.all([service.toggleLike(post.id), service.toggleSaved(post.id)]);
+  assert.equal(like.liked, true);
+  assert.equal(save.saved, true);
+  const persisted = await service.getPostById(post.id);
+  assert.equal(persisted.likedByCurrentUser, true);
+  assert.equal(persisted.savedByCurrentUser, true);
+  assert.equal(persisted.likesCount, 1);
+  assert.equal(persisted.savesCount, 1);
+});
+
+test('dois follows concorrentes persistem sem substituir a outra relação', async () => {
+  const { service } = fixture();
+  const results = await Promise.all([
+    service.toggleFollow('user-lunaforge'),
+    service.toggleFollow('user-knightshade')
+  ]);
+  assert.ok(results.every(result => result.followed));
+  assert.deepEqual(new Set((await service.listFollowing('user-veemaster')).map(user => user.id)),
+    new Set(['user-lunaforge', 'user-knightshade']));
+});
+
+test('falha de escrita não envenena a fila de mutações', async () => {
+  const { service, storage } = fixture();
+  const post = await service.createPost(input());
+  const write = storage.setItem;
+  let failNext = true;
+  storage.setItem = (key, value) => {
+    if (failNext) { failNext = false; throw new Error('Quota de teste'); }
+    return write(key, value);
+  };
+  await assert.rejects(service.toggleLike(post.id), /Quota de teste/);
+  await service.toggleSaved(post.id);
+  const persisted = await service.getPostById(post.id);
+  assert.equal(persisted.likedByCurrentUser, false);
+  assert.equal(persisted.savedByCurrentUser, true);
+});
+
+test('repositories da mesma página compartilham a fila do mesmo storage', async () => {
+  const { service, storage } = fixture();
+  const secondRepository = new LocalCommunityRepository(storage);
+  const secondService = new CommunityService(secondRepository, new CommunitySession(secondRepository));
+  const posts = await Promise.all([
+    service.createPost(input({ title: 'Primeira instância' })),
+    secondService.createPost(input({ title: 'Segunda instância' }))
+  ]);
+  for (const post of posts) assert.ok(await secondRepository.getPostById(post.id));
+});
+
 test('IDs canônicos: decimal positivo seguro; rejeita coerções ambíguas', () => {
   for (const value of [339958, '339958', ' 00339958 ']) assert.equal(normalizeGameId(value), 339958);
   for (const value of [null, undefined, '', ' ', 'abc', '12abc', 0, -1, 1.1, '1e3', '0x10', true, [], Infinity, Number.MAX_SAFE_INTEGER + 1]) {

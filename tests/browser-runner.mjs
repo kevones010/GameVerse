@@ -9,14 +9,16 @@ import { tmpdir } from "node:os";
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const pause = (ms) => new Promise((resolvePause) => setTimeout(resolvePause, ms));
 
-export async function startBrowser() {
+export async function startBrowser({ youtubeFixture = false } = {}) {
   const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon" };
   const server = createServer(async (request, response) => {
     try {
       const pathname = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
       if (pathname === "/js/config.local.js") {
         response.writeHead(200, { "Content-Type": "text/javascript" });
-        response.end('export const LOCAL_CONFIG = {RAWG_API_KEY:"browser-fixture",YOUTUBE_API_KEY:""};');
+        response.end(`export const LOCAL_CONFIG = ${JSON.stringify({
+          RAWG_API_KEY: "browser-fixture", YOUTUBE_API_KEY: youtubeFixture ? "browser-fixture" : ""
+        })};`);
         return;
       }
       const target = resolve(projectRoot, `.${pathname === "/" ? "/index.html" : pathname}`);
