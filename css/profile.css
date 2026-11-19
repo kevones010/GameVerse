@@ -70,3 +70,52 @@
 @media (max-width: 900px) { .profile-layout { grid-template-columns:1fr; } .profile-sidebar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width: 700px) { .profile-hero { grid-template-columns:1fr; text-align:center; } .profile-avatar-shell { margin:0 auto; width:110px; height:110px; } .profile-stats, .profile-actions { justify-content:center; } .profile-sidebar { grid-template-columns:1fr; } .profile-tabs { overflow-x:auto; flex-wrap:nowrap; padding-bottom:.75rem; } .profile-tab { flex:0 0 auto; } }
 @media (prefers-reduced-motion: reduce) { .profile-avatar-skeleton { animation:none; } }
+
+/* ===== Vitrine do jogador, conquistas e atividade ===== */
+.profile-showcase, .profile-achievements { margin-top:1.2rem; padding:1.3rem; border:1px solid var(--border); border-radius:24px; background:rgba(14,17,26,.9); }
+.profile-section-heading { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.profile-section-heading h2 { margin:.15rem 0 0; font-size:1.3rem; }
+.showcase-numbers { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.7rem; margin:0 0 1.1rem; }
+.showcase-numbers div { padding:.8rem .9rem; border:1px solid var(--border); border-radius:16px; background:linear-gradient(135deg, rgba(255,57,76,.12), rgba(124,77,255,.08)); }
+.showcase-numbers dt { color:var(--muted); font-size:.78rem; font-weight:700; }
+.showcase-numbers dd { margin:.2rem 0 0; font-size:1.3rem; font-weight:800; }
+.showcase-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+.showcase-column h3 { margin:0 0 .6rem; font-size:1rem; }
+.showcase-games { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem; }
+.showcase-game { position:relative; display:block; overflow:hidden; border:1px solid var(--border); border-radius:14px; color:var(--text); text-decoration:none; aspect-ratio:16/10; background:#11131c; }
+.showcase-game img { width:100%; height:100%; object-fit:cover; transition:transform .3s ease; }
+.showcase-game:hover img { transform:scale(1.06); }
+.showcase-game-copy { position:absolute; inset:auto 0 0 0; display:grid; gap:.1rem; padding:.55rem .6rem; background:linear-gradient(transparent, rgba(0,0,0,.88)); }
+.showcase-game-copy strong { font-size:.82rem; line-height:1.2; }
+.showcase-game-copy small { color:#ff8fa3; font-size:.7rem; font-weight:700; }
+.showcase-empty { margin:0; color:var(--muted); font-size:.9rem; }
+.showcase-chips { display:flex; flex-wrap:wrap; gap:.6rem; }
+.showcase-chip { display:grid; gap:.1rem; padding:.7rem 1rem; border:1px solid var(--border); border-radius:14px; color:var(--text); text-decoration:none; background:rgba(255,255,255,.04); }
+.showcase-chip:hover { border-color:rgba(255,78,94,.55); }
+.showcase-chip small { color:var(--muted); }
+
+.achievement-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.7rem; margin:0; padding:0; list-style:none; }
+.achievement { display:flex; gap:.75rem; align-items:center; padding:.75rem; border:1px solid var(--border); border-radius:16px; background:rgba(255,255,255,.03); }
+.achievement img { flex:0 0 auto; width:56px; height:56px; object-fit:contain; border-radius:14px; background:rgba(255,255,255,.04); }
+.achievement.is-unlocked { border-color:rgba(255,209,102,.55); background:linear-gradient(135deg, rgba(255,209,102,.12), rgba(255,57,76,.08)); }
+.achievement.is-locked img { filter:grayscale(1); opacity:.45; }
+.achievement-copy { display:grid; gap:.2rem; min-width:0; }
+.achievement-copy strong { font-size:.92rem; }
+.achievement-copy > span { color:var(--muted); font-size:.78rem; line-height:1.35; }
+.achievement-progress { height:6px; margin-top:.25rem; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.1); }
+.achievement-progress span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg, #ff4968, #ffd166); }
+.achievement-status { color:var(--muted); font-size:.72rem; font-weight:700; }
+.achievement.is-unlocked .achievement-status { color:#ffd166; }
+
+.activity-list { display:grid; gap:.15rem; margin:.7rem 0 0; padding:0; list-style:none; }
+.activity-item { display:flex; gap:.6rem; align-items:flex-start; padding:.55rem 0; border-bottom:1px solid rgba(255,255,255,.06); }
+.activity-item:last-child { border-bottom:0; }
+.activity-icon { flex:0 0 auto; display:grid; place-items:center; width:1.9rem; height:1.9rem; border-radius:.6rem; background:rgba(255,255,255,.06); }
+.activity-copy { display:grid; gap:.15rem; min-width:0; font-size:.86rem; line-height:1.35; }
+.activity-copy time { color:var(--muted); font-size:.74rem; }
+.activity-empty { color:var(--muted); font-size:.88rem; }
+
+@media (max-width: 900px) {
+  .showcase-numbers { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .showcase-columns { grid-template-columns:1fr; }
+}

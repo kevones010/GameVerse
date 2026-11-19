@@ -1,12 +1,8 @@
 import { createGamePicker } from "./gamePicker.js";
+import { POST_TYPE_LABELS } from "../../services/community/postTypes.js";
 
-const POST_TYPE_OPTIONS = [
-  { value: "guide", label: "Guia" },
-  { value: "art", label: "Arte" },
-  { value: "screenshot", label: "Screenshot" },
-  { value: "discussion", label: "Discussão" },
-  { value: "question", label: "Pergunta" }
-];
+const POST_TYPE_OPTIONS = Object.entries(POST_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+const POLL_SLOTS = 4;
 
 function createElement(tagName, className, text) {
   const element = document.createElement(tagName);
@@ -93,6 +89,51 @@ export function createPostComposer({ service, onSaved, onError }) {
     hint: "Texto simples, até 5000 caracteres."
   });
   const gameField = createGamePicker();
+
+  // Nota da análise (só aparece no tipo "Análise").
+  const ratingGroup = createElement("div", "composer-field composer-rating");
+  const ratingLabel = createElement("label", "composer-label", "Sua nota");
+  ratingLabel.htmlFor = "composer-rating";
+  const ratingSelect = document.createElement("select");
+  ratingSelect.id = "composer-rating";
+  ratingSelect.name = "rating";
+  ratingSelect.setAttribute("aria-describedby", "composer-rating-error");
+  [["", "Sem nota"], ["5", "★★★★★ 5"], ["4", "★★★★ 4"], ["3", "★★★ 3"], ["2", "★★ 2"], ["1", "★ 1"]].forEach(([value, text]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    ratingSelect.append(option);
+  });
+  ratingGroup.append(ratingLabel, ratingSelect, createError("rating"));
+  ratingGroup.hidden = true;
+
+  // Enquete (só aparece no tipo "Pergunta").
+  const pollGroup = createElement("fieldset", "composer-field composer-poll");
+  const pollLegend = createElement("legend", "composer-label", "Enquete — opcional");
+  const pollHint = createElement("span", "composer-hint", "Preencha de 2 a 4 opções para a pergunta virar uma votação.");
+  pollHint.id = "composer-poll-hint";
+  const pollInputs = Array.from({ length: POLL_SLOTS }, (_, index) => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.name = `pollOption${index}`;
+    input.maxLength = 60;
+    input.autocomplete = "off";
+    input.placeholder = `Opção ${index + 1}`;
+    input.setAttribute("aria-label", `Opção ${index + 1} da enquete`);
+    input.setAttribute("aria-describedby", "composer-poll-hint composer-pollOptions-error");
+    return input;
+  });
+  const pollList = createElement("div", "composer-poll-options");
+  pollList.append(...pollInputs);
+  pollGroup.append(pollLegend, pollHint, pollList, createError("pollOptions"));
+  pollGroup.hidden = true;
+
+  const syncTypeFields = () => {
+    const type = form.elements.type.value;
+    ratingGroup.hidden = type !== "review";
+    pollGroup.hidden = type !== "question";
+  };
+  typeOptions.addEventListener("change", syncTypeFields);
   const tagsField = createTextField({
     name: "tags",
     label: "Tags",
@@ -143,6 +184,8 @@ export function createPostComposer({ service, onSaved, onError }) {
     typeField,
     titleField.group,
     contentField.group,
+    ratingGroup,
+    pollGroup,
     gameField.group,
     tagsField.group,
     mediaField.group,
@@ -206,6 +249,7 @@ export function createPostComposer({ service, onSaved, onError }) {
     form.reset();
     form.elements.type.value = "guide";
     spoilerDetail.group.hidden = true;
+    syncTypeFields();
     clearErrors();
   }
 
@@ -214,7 +258,7 @@ export function createPostComposer({ service, onSaved, onError }) {
     if (dialog.open) dialog.close();
   }
 
-  async function open(post = null, trigger = document.activeElement, game = null) {
+  async function open(post = null, trigger = document.activeElement, game = null, preset = null) {
     if (isSubmitting) return;
     mode = post ? "edit" : "create";
     editingPost = post;
@@ -223,6 +267,16 @@ export function createPostComposer({ service, onSaved, onError }) {
     title.textContent = post ? "Editar publicação" : "Criar publicação";
     submitButton.textContent = post ? "Salvar alterações" : "Publicar";
     gameField.open(post ? post.game : game);
+
+    // Texto já preenchido (ex.: análise vinda da página do jogo).
+    if (!post && preset) {
+      form.elements.type.value = preset.type || "guide";
+      titleField.field.value = preset.title || "";
+      contentField.field.value = preset.content || "";
+      tagsField.field.value = (preset.tags || []).join(", ");
+      ratingSelect.value = preset.rating ? String(preset.rating) : "";
+      syncTypeFields();
+    }
 
     if (post) {
       form.elements.type.value = post.type;
@@ -233,6 +287,9 @@ export function createPostComposer({ service, onSaved, onError }) {
       spoilerInput.checked = post.spoiler;
       spoilerDetail.field.value = post.spoilerLabel || "";
       spoilerDetail.group.hidden = !post.spoiler;
+      ratingSelect.value = post.rating ? String(post.rating) : "";
+      pollInputs.forEach((input, index) => { input.value = post.poll?.options?.[index]?.label || ""; });
+      syncTypeFields();
     }
 
     document.body.classList.add("modal-open");
@@ -275,7 +332,9 @@ export function createPostComposer({ service, onSaved, onError }) {
       tags: tagsField.field.value,
       mediaUrl: mediaField.field.value,
       spoiler: spoilerInput.checked,
-      spoilerLabel: spoilerDetail.field.value
+      spoilerLabel: spoilerDetail.field.value,
+      rating: ratingSelect.value,
+      pollOptions: pollInputs.map((input) => input.value)
     };
 
     setSubmitting(true);
@@ -300,8 +359,8 @@ export function createPostComposer({ service, onSaved, onError }) {
   });
 
   return {
-    openCreate(trigger, game = null) {
-      return open(null, trigger, game);
+    openCreate(trigger, game = null, preset = null) {
+      return open(null, trigger, game, preset);
     },
     openEdit(post, trigger) {
       return open(post, trigger);

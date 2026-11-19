@@ -12,7 +12,8 @@ const TYPES = [
   { value: "art", label: "Artes" },
   { value: "screenshot", label: "Screenshots" },
   { value: "discussion", label: "Discussões" },
-  { value: "question", label: "Perguntas" }
+  { value: "question", label: "Perguntas" },
+  { value: "review", label: "Análises" }
 ];
 
 function createFilterButton(item, groupName, onSelect) {

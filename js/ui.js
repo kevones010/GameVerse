@@ -2,6 +2,7 @@ import { escapeHtml, formatDate, observeLazyImages } from "./utils.js";
 import { DESCRIPTION_BY_SLUG } from "../data/descriptions-pt.js";
 import { navigateWithVee } from "./motion.js";
 import { readFavorites, readRating, readAnalysis, writePersonalData, removePersonalData } from "./services/gameStorage.js";
+import { translateToPortuguese } from "./services/translationService.js";
 import { GAME_STATUSES, getGameStatus, setGameStatus, gameSnapshot, readCollection } from "./services/collectionStorage.js";
 
 function storageNotice(container, message) {
@@ -182,11 +183,82 @@ export function renderStatusPicker(game) {
 }
 
 export function renderSynopsis(game) {
-  const synopsis = document.getElementById("synopsis");
-  const portugueseDescription = DESCRIPTION_BY_SLUG[game.slug];
-  const description = portugueseDescription || game.description_raw || "Descrição ainda não disponível.";
+  const descriptionEl = document.getElementById("game-description");
+  const handwritten = DESCRIPTION_BY_SLUG[game.slug];
+  const original = String(game.description_raw || "").replace(/<[^>]*>/g, "").trim();
 
-  document.getElementById("game-description").textContent = description.replace(/<[^>]*>/g, "");
+  let status = document.getElementById("synopsisStatus");
+  if (!status) {
+    status = document.createElement("div");
+    status.id = "synopsisStatus";
+    status.className = "synopsis-status";
+    status.setAttribute("role", "status");
+    descriptionEl.insertAdjacentElement("afterend", status);
+  }
+
+  if (!original) {
+    descriptionEl.textContent = handwritten || "Descrição ainda não disponível.";
+    status.innerHTML = "";
+    return;
+  }
+
+  // Enquanto traduz, mostra o resumo em português (se existir) ou o original.
+  descriptionEl.textContent = handwritten || original;
+  descriptionEl.lang = handwritten ? "pt-BR" : "en";
+  status.innerHTML = '<span class="synopsis-spinner" aria-hidden="true"></span> Traduzindo a sinopse para português…';
+
+  const showTranslation = (text, provider) => {
+    let showingOriginal = false;
+    const render = () => {
+      descriptionEl.textContent = showingOriginal ? original : text;
+      descriptionEl.lang = showingOriginal ? "en" : "pt-BR";
+      const label = provider === "chrome" ? "tradutor do navegador" : provider === "mymemory" ? "MyMemory" : "salva neste navegador";
+      status.innerHTML = `🌐 Tradução automática (${label}). <button type="button" class="synopsis-toggle">${showingOriginal ? "Ver em português" : "Ver original em inglês"}</button>`;
+      status.querySelector(".synopsis-toggle").addEventListener("click", () => {
+        showingOriginal = !showingOriginal;
+        render();
+      });
+    };
+    render();
+  };
+
+  const run = async (allowDownload = false) => {
+    try {
+      const result = await translateToPortuguese(original, {
+        cacheKey: `jogo-${game.id}`,
+        allowDownload,
+        onProgress: (loaded) => {
+          status.innerHTML = `<span class="synopsis-spinner" aria-hidden="true"></span> Baixando o tradutor do navegador… ${Math.round((loaded || 0) * 100)}%`;
+        }
+      });
+      if (result.needsDownload) {
+        status.innerHTML = `${handwritten ? "" : "Sinopse em inglês. "}<button type="button" class="synopsis-toggle">🌐 Traduzir para português</button> <small>(o navegador baixa o tradutor uma vez só)</small>`;
+        status.querySelector(".synopsis-toggle").addEventListener("click", () => {
+          status.innerHTML = '<span class="synopsis-spinner" aria-hidden="true"></span> Preparando o tradutor…';
+          run(true);
+        });
+        return;
+      }
+      showTranslation(result.text, result.provider);
+    } catch {
+      if (handwritten) {
+        // Mantém o resumo em português e oferece o texto completo em inglês.
+        status.innerHTML = 'Resumo em português. <button type="button" class="synopsis-toggle">Ler descrição completa (inglês)</button>';
+        status.querySelector(".synopsis-toggle").addEventListener("click", () => {
+          descriptionEl.textContent = original;
+          descriptionEl.lang = "en";
+          status.innerHTML = "";
+        });
+        return;
+      }
+      status.innerHTML = 'Sinopse original em inglês: não foi possível traduzir agora. <button type="button" class="synopsis-toggle">Tentar de novo</button>';
+      status.querySelector(".synopsis-toggle").addEventListener("click", () => {
+        status.innerHTML = '<span class="synopsis-spinner" aria-hidden="true"></span> Traduzindo…';
+        run(true);
+      });
+    }
+  };
+  run(false);
 }
 
 export function renderTrailer(trailers, game, youtubeTrailer = null) {
@@ -357,7 +429,7 @@ export function renderAnalysis(gameId, editing = false) {
   };
 
   if (savedReview.text && !editing) {
-    analysis.innerHTML = `<article class="review-card"><div class="review-author"><span class="review-avatar">G</span><div><strong>${escapeHtml(savedReview.user || "Visitante")}</strong><span>${escapeHtml(savedReview.date || "")}</span></div></div><p>${escapeHtml(savedReview.text)}</p><div class="analysis-actions"><button type="button" class="btn btn-secondary" id="editAnalysis">Editar</button><button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button></div></article>`;
+    analysis.innerHTML = `<article class="review-card"><div class="review-author"><span class="review-avatar">G</span><div><strong>${escapeHtml(savedReview.user || "Visitante")}</strong><span>${escapeHtml(savedReview.date || "")}</span></div></div><p>${escapeHtml(savedReview.text)}</p><div class="analysis-actions"><a class="btn btn-primary" id="publishAnalysis" href="comunidade-jogo.html?gameId=${encodeURIComponent(gameId)}&publicarAnalise=1&nome=${encodeURIComponent(document.getElementById("game-title")?.textContent || "")}">📣 Publicar na comunidade</a><button type="button" class="btn btn-secondary" id="editAnalysis">Editar</button><button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button></div></article>`;
     document.getElementById("editAnalysis").addEventListener("click", () => {
       renderAnalysis(gameId, true);
     });

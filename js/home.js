@@ -1,8 +1,10 @@
 import { getGame, getGamesList } from './services/rawgService.js';
-import { sortByRelevance, escapeHtml } from './utils.js';
+import { escapeHtml, genreLine } from './utils.js';
 import { navigateWithVee } from './motion.js';
 import { readFavorites } from './services/gameStorage.js';
 import { readCollection, statusInfo } from './services/collectionStorage.js';
+import { homeQueries, upcomingQuery, curateGames } from './homeQueries.js';
+import { DESCRIPTION_BY_SLUG } from '../data/descriptions-pt.js';
 
 const FAVORITE_NAMES = [
   'Persona 5 Royal', 'Metaphor: ReFantazio', 'The Legend of Zelda: Breath of the Wild',
@@ -81,9 +83,11 @@ function createCardMarkup(game, variant = 'default') {
     <article class="card" data-id="${game.id}" data-slug="${game.slug}">
       <div class="card-media">
         <img src="${escapeHtml(image)}" alt="${escapeHtml(game.name)}" loading="lazy" />
+        ${Number(game.metacritic) > 0 && variant === 'default' ? `<span class="card-metacritic" title="Nota Metacritic">${Number(game.metacritic)}</span>` : ''}
       </div>
       <div class="card-body">
         <h3>${escapeHtml(game.name)}</h3>
+        ${genreLine(game) ? `<p class="card-genres">${escapeHtml(genreLine(game))}</p>` : ''}
         <div class="meta">
           <span>${year}</span>
           <span>${rating}</span>
@@ -223,21 +227,11 @@ async function surpriseMe(event) {
   }
 }
 
-function isoDate(date) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-}
-
+// Os 12 lançamentos mais aguardados (mais adicionados em listas), mostrados por data.
 async function fetchUpcomingGames() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextYear = new Date();
-  nextYear.setFullYear(nextYear.getFullYear() + 1);
-  const games = await fetchGames({ dates: `${isoDate(tomorrow)},${isoDate(nextYear)}`, ordering: '-added', page_size: 20 });
-  return games
-    .filter((game) => game.released && daysUntil(game.released) > 0)
-    .sort((a, b) => a.released.localeCompare(b.released))
-    .slice(0, 12);
+  const games = await fetchGames(upcomingQuery());
+  return curateGames(games.filter((game) => game.released && daysUntil(game.released) > 0), { minRatings: 0, limit: 12, sort: 'none' })
+    .sort((a, b) => a.released.localeCompare(b.released));
 }
 
 function renderSkeleton(section, type = 'section') {
@@ -320,7 +314,8 @@ function renderHero(slides, index = 0) {
   }
 
   const image = slide.background_image || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1600&q=80';
-  const description = slide.tagline || slide.description_raw?.slice(0, 140) || 'Uma experiência premium preparada para a sua próxima sessão.';
+  // Os destaques usam os resumos escritos em português (data/descriptions-pt.js).
+  const description = DESCRIPTION_BY_SLUG[slide.slug] || slide.tagline || slide.description_raw?.slice(0, 140) || 'Uma experiência premium preparada para a sua próxima sessão.';
   const focusedControl = hero.contains(document.activeElement) ? document.activeElement.dataset.heroControl : null;
 
   hero.setAttribute('aria-roledescription', 'carrossel');
@@ -424,27 +419,28 @@ async function renderHome() {
   renderSkeleton(indie);
 
   try {
+    const queries = homeQueries();
     const [heroGames, launchGames, upcomingGames, trendingGames, topRatedGames, developerGames, rpgGames, actionGames, adventureGames, indieGames] = await Promise.all([
       Promise.all(HERO_SLIDES.map(async (slide) => getGame(slide.slug))),
-      fetchGames({ dates: '2024-01-01,2026-12-31', ordering: '-added', page_size: 12 }),
+      fetchGames(queries.launches).then((games) => curateGames(games, { minRatings: 10 })),
       fetchUpcomingGames(),
-      fetchGames({ ordering: '-added', page_size: 12 }),
-      fetchGames({ ordering: '-rating', page_size: 12 }),
+      fetchGames(queries.trending).then((games) => curateGames(games, { sort: 'none' })),
+      fetchGames(queries.topRated).then((games) => curateGames(games, { minRatings: 100, sort: 'none' })),
       fetchDeveloperFavorites(FAVORITE_NAMES),
-      fetchGames({ genres: '5', ordering: '-rating', page_size: 8 }),
-      fetchGames({ genres: '4', ordering: '-rating', page_size: 8 }),
-      fetchGames({ genres: '3', ordering: '-rating', page_size: 8 }),
-      fetchGames({ genres: '51', ordering: '-rating', page_size: 8 })
+      fetchGames(queries.rpg).then((games) => curateGames(games)),
+      fetchGames(queries.action).then((games) => curateGames(games)),
+      fetchGames(queries.adventure).then((games) => curateGames(games)),
+      fetchGames(queries.indie).then((games) => curateGames(games))
     ]);
 
     startHeroSlider(heroGames.map((game, index) => ({ ...game, tag: HERO_SLIDES[index].tag })));
 
-    renderSection(launches, '🔥 Lançamentos relevantes', 'Novidades recentes com maior impacto', sortByRelevance(launchGames).slice(0, 12), { moreHref: 'categorias.html?ordem=-released' });
+    renderSection(launches, '🔥 Lançamentos relevantes', 'Novidades recentes com maior impacto', launchGames, { moreHref: 'categorias.html?ordem=-released' });
     renderSection(upcoming, '📅 Em breve', 'Os próximos lançamentos mais aguardados', upcomingGames, { moreHref: '', variant: 'upcoming' });
-    renderSection(trending, '⭐ Em Alta', 'Jogos mais populares da semana', trendingGames, { moreHref: 'categorias.html?ordem=-added' });
-    renderSection(topRated, '🏆 Mais bem avaliados', 'Qualidade e popularidade combinadas', sortByRelevance(topRatedGames).slice(0, 12), { moreHref: 'categorias.html?ordem=-rating' });
+    renderSection(trending, '⭐ Mais populares', 'Os jogos que mais gente tem na coleção', trendingGames, { moreHref: 'categorias.html?ordem=-added' });
+    renderSection(topRated, '🏆 Aclamados pela crítica', 'Nota 90+ no Metacritic', topRatedGames, { moreHref: 'categorias.html?nota=90&ordem=-metacritic' });
     renderSection(developerFavorites, '❤️ Favoritos do Desenvolvedor', 'Uma seleção pensada para impressionar', developerGames, { moreHref: '' });
-    renderSection(rpg, '🧙 RPG / JRPG', 'Histórias épicas e mundos ricos', rpgGames, { moreHref: 'categorias.html?genero=role-playing-games-rpg' });
+    renderSection(rpg, '🧙 RPG', 'Histórias épicas e mundos ricos', rpgGames, { moreHref: 'categorias.html?genero=role-playing-games-rpg' });
     renderSection(action, '⚔️ Ação', 'Combate, ritmo e impacto', actionGames, { moreHref: 'categorias.html?genero=action' });
     renderSection(adventure, '🗺️ Aventura', 'Descobertas e grandes jornadas', adventureGames, { moreHref: 'categorias.html?genero=adventure' });
     renderSection(indie, '🎮 Indies', 'Experiências criativas e originais', indieGames, { moreHref: 'categorias.html?genero=indie' });

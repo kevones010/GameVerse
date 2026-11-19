@@ -20,7 +20,8 @@ test('perfil agrega publicações, seguidores e seguindo sem depender de RAWG', 
   assert.equal(profile.isCurrentUser, true);
   assert.equal(profile.handle, 'veemaster');
   assert.ok(profile.postsCount >= 1);
-  assert.equal(profile.followersCount, 0);
+  // Os dados de demonstração já trazem alguns seguidores; o perfil precisa bater com as listas.
+  assert.equal(profile.followersCount, (await service.listFollowers(current.id, 99)).length);
   assert.equal(profile.followingCount, 0);
   assert.equal(Object.values(profile.counts).reduce((a, b) => a + b, 0), profile.postsCount);
 });
@@ -44,9 +45,10 @@ test('follow é único, reversível, não permite self-follow e alimenta a aba S
   const { service } = fixture();
   const current = await service.getCurrentUser();
   await assert.rejects(service.toggleFollow(current.id), { code: 'cannot-follow-self' });
+  const followersBefore = (await service.getUserProfile('user-lunaforge')).followersCount;
   const follow = await service.toggleFollow('user-lunaforge');
   assert.equal(follow.followed, true);
-  assert.equal((await service.getUserProfile('user-lunaforge')).followersCount, 1);
+  assert.equal((await service.getUserProfile('user-lunaforge')).followersCount, followersBefore + 1);
   assert.equal((await service.getUserProfile(current.id)).followingCount, 1);
   const followingFeed = await service.listFollowingPosts({ limit: 20 });
   assert.ok(followingFeed.items.length > 0);
@@ -77,7 +79,7 @@ test('listas de seguidores e seguindo resolvem usuários reais', async () => {
 
 test('curtidas do próprio perfil são privadas ao usuário atual e preservam interação', async () => {
   const { service } = fixture();
-  const candidate = (await service.listPosts({ limit: 12 })).items.find(post => post.authorId !== 'user-veemaster');
+  const candidate = (await service.listPosts({ limit: 12 })).items.find(post => post.authorId !== 'user-veemaster' && !post.likedByCurrentUser);
   await service.toggleLike(candidate.id);
   const liked = await service.listCurrentUserLikedPosts({ limit: 20 });
   const post = liked.items.find(item => item.id === candidate.id);

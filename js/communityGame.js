@@ -1,6 +1,7 @@
 import { CommunityService } from "./services/community/communityService.js";
 import { LocalCommunityRepository } from "./services/community/localCommunityRepository.js";
 import { CommunitySession } from "./services/community/communitySession.js";
+import { readAnalysis, readRating } from "./services/gameStorage.js";
 import { normalizeGameId } from "./services/community/communityValidation.js";
 import { getGame } from "./services/rawgService.js";
 import { createConfirmDialog } from "./community/ui/confirmDialog.js";
@@ -20,7 +21,8 @@ const TYPES = [
   { value: "art", label: "Artes" },
   { value: "screenshot", label: "Screenshots" },
   { value: "discussion", label: "Discussões" },
-  { value: "question", label: "Perguntas" }
+  { value: "question", label: "Perguntas" },
+  { value: "review", label: "Análises" }
 ];
 
 const gameId = normalizeGameId(new URLSearchParams(location.search).get("gameId"));
@@ -269,6 +271,31 @@ async function loadStats() {
   }
 }
 
+// Vindo da página do jogo ("Publicar na comunidade"): abre o composer com a análise preenchida.
+async function openReviewFromGamePage() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("publicarAnalise") !== "1" || !composer) return;
+  params.delete("publicarAnalise");
+  const name = (params.get("nome") || rawgGame?.name || snapshotGame?.name || "").trim().slice(0, 100);
+  params.delete("nome");
+  history.replaceState(history.state, "", `${location.pathname}?${params.toString()}`);
+
+  const analysis = readAnalysis(gameId).value;
+  const rating = readRating(gameId).value;
+  if (!analysis?.text) {
+    notify("Não encontrei uma análise salva para este jogo.", "error");
+    return;
+  }
+  const game = rawgGame || snapshotGame;
+  await composer.openCreate(createPostButton, { id: gameId, name: game?.name || name, slug: game?.slug || "" }, {
+    type: "review",
+    title: `Análise: ${game?.name || name || "jogo"}`.slice(0, 120),
+    content: analysis.text,
+    rating: rating || null,
+    tags: ["analise"]
+  });
+}
+
 async function openComposer(trigger) {
   if (!composer) return;
   const game = rawgGame || snapshotGame;
@@ -418,5 +445,5 @@ if (!gameId) {
     error: true, label: "Voltar para Comunidade", href: "comunidade.html"
   }));
 } else {
-  initializeCommunity().then(enrichHeader);
+  initializeCommunity().then(enrichHeader).then(openReviewFromGamePage);
 }

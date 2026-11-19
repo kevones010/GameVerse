@@ -15,7 +15,8 @@ import {
   renderModal,
   renderError
 } from "./ui.js";
-import { getGame, getScreenshots, getGameTrailers, getStores, getSuggestions, getSearch } from "./services/rawgService.js";
+import { getGame, getScreenshots, getGameTrailers, getStores, getSearch } from "./services/rawgService.js";
+import { getSimilarGames } from "./services/similarGames.js";
 import { getYouTubeTrailer } from "./services/youtubeService.js";
 import { getQueryParam, debounce } from "./utils.js";
 import { navigateWithVee } from "./motion.js";
@@ -160,7 +161,7 @@ async function loadGamePage() {
       Promise.resolve(getCachedValue(`screenshots:${game.id}`) || getScreenshots(game.id)),
       Promise.resolve(getCachedValue(`trailers:${game.id}`) ?? getGameTrailers(game.id)),
       Promise.resolve(getCachedValue(`stores:${game.id}`) || getStores(game.id)),
-      getSuggestions(game.name)
+      getSimilarGames(game)
     ]);
 
     const screenshots = results[0].status === "fulfilled" ? results[0].value : [];

@@ -25,6 +25,31 @@ const reportDialog = createReportDialog({
   onError(error) { if (error.code !== "validation-error") notify(error.message || "Não foi possível registrar a denúncia.", "error"); }
 });
 let nextCursor = null;
+// Hashtag escolhida (comunidade.html?tag=persona5): filtra o feed.
+let activeTag = (new URLSearchParams(location.search).get("tag") || "").replace(/^#/, "").trim().toLowerCase().slice(0, 32);
+const tagBanner = document.getElementById("activeTagBanner");
+
+function renderTagBanner() {
+  tagBanner.hidden = !activeTag;
+  if (!activeTag) return;
+  const label = document.createElement("span");
+  label.textContent = "Mostrando publicações com ";
+  const tag = document.createElement("strong");
+  tag.textContent = `#${activeTag}`;
+  label.append(tag);
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "active-tag-clear";
+  clear.textContent = "✕ Limpar hashtag";
+  clear.addEventListener("click", () => {
+    activeTag = "";
+    history.replaceState(history.state, "", location.pathname);
+    renderTagBanner();
+    loadPosts({ append: false });
+    renderDiscovery().catch(() => {});
+  });
+  tagBanner.replaceChildren(label, clear);
+}
 let requestVersion = 0;
 let currentUser = null;
 let composer = null;
@@ -148,10 +173,12 @@ async function renderDiscovery() {
   const tagsList = document.getElementById("popularTags");
   tagsList.replaceChildren(...tags.map(({ tag, postsCount }) => {
     const item = document.createElement("li");
-    const label = document.createElement("span");
+    const label = document.createElement("a");
     label.className = "topic-chip";
+    label.href = `comunidade.html?tag=${encodeURIComponent(tag)}`;
     label.textContent = `#${tag}`;
     label.title = `${postsCount} publicações`;
+    label.classList.toggle("is-active", activeTag === tag);
     item.appendChild(label);
     return item;
   }));
@@ -258,7 +285,7 @@ async function loadPosts({ append = false } = {}) {
   }
 
   try {
-    const result = await communityService.listPosts({ ...activeFilters, cursor, limit: 6 });
+    const result = await communityService.listPosts({ ...activeFilters, tag: activeTag || undefined, cursor, limit: 6 });
     if (currentRequest !== requestVersion) return;
 
     nextCursor = result.nextCursor;
@@ -317,6 +344,7 @@ async function initializeCommunity() {
       });
     }
     createPostButton.disabled = false;
+    renderTagBanner();
     await loadPosts();
     renderDiscovery().catch(() => {});
   } catch (error) {

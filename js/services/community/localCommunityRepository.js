@@ -28,11 +28,24 @@ function synchronizeCounters(state) {
   const likes = countByPost(state.likes);
   const comments = countByPost(state.comments, (comment) => comment.status === "published");
   const saves = countByPost(state.savedPosts);
+  const reactions = Array.isArray(state.reactions) ? state.reactions : [];
+  const votes = Array.isArray(state.pollVotes) ? state.pollVotes : [];
 
   state.posts.forEach((post) => {
     post.likesCount = likes.get(post.id) || 0;
     post.commentsCount = comments.get(post.id) || 0;
     post.savesCount = saves.get(post.id) || 0;
+    post.reactionCounts = { fire: 0, laugh: 0, wow: 0 };
+    reactions.filter((reaction) => reaction.postId === post.id).forEach((reaction) => {
+      if (Object.hasOwn(post.reactionCounts, reaction.emoji)) post.reactionCounts[reaction.emoji] += 1;
+    });
+    if (post.poll?.options?.length) {
+      post.pollCounts = post.poll.options.map((_, index) => (
+        votes.filter((vote) => vote.postId === post.id && vote.optionIndex === index).length
+      ));
+    } else {
+      delete post.pollCounts;
+    }
   });
 
   return state;
@@ -132,8 +145,12 @@ export class LocalCommunityRepository extends CommunityRepository {
       assertAuthor(post, actorId, "Você só pode editar suas próprias publicações.");
       const editableFields = [
         "type", "title", "content", "gameId", "gameName", "gameSlug",
-        "tags", "media", "spoiler", "spoilerLabel", "updatedAt"
+        "tags", "media", "spoiler", "spoilerLabel", "updatedAt", "poll", "rating"
       ];
+      // Mudar as opções da enquete apaga os votos antigos (eles apontavam para outras opções).
+      if (Object.hasOwn(changes, "poll") && JSON.stringify(changes.poll) !== JSON.stringify(post.poll ?? null)) {
+        state.pollVotes = state.pollVotes.filter((vote) => vote.postId !== postId);
+      }
       editableFields.forEach((field) => {
         if (Object.hasOwn(changes, field)) post[field] = clone(changes[field]);
       });
@@ -255,6 +272,57 @@ export class LocalCommunityRepository extends CommunityRepository {
     }).then(async (result) => {
       const post = await this.getPostById(postId);
       return { ...result, savesCount: post?.savesCount || 0 };
+    });
+  }
+
+  async listCommentsByUser(userId) {
+    const state = await this.initialize();
+    return clone(state.comments.filter((comment) => comment.authorId === userId && comment.status === "published"));
+  }
+
+  async listReactionsByUser(userId) {
+    const state = await this.initialize();
+    return clone(state.reactions.filter((reaction) => reaction.userId === userId));
+  }
+
+  async listPollVotesByUser(userId) {
+    const state = await this.initialize();
+    return clone(state.pollVotes.filter((vote) => vote.userId === userId));
+  }
+
+  // Cada pessoa pode marcar cada reação uma vez por post (clicar de novo tira).
+  async toggleReaction(postId, userId, emoji, interaction) {
+    return this.mutateState((state) => {
+      requirePublishedPost(state, postId);
+      const index = state.reactions.findIndex((item) => item.postId === postId && item.userId === userId && item.emoji === emoji);
+      if (index >= 0) {
+        state.reactions.splice(index, 1);
+        return { reacted: false, postId, emoji };
+      }
+      state.reactions.push({ ...clone(interaction), postId, userId, emoji });
+      return { reacted: true, postId, emoji };
+    }).then(async (result) => {
+      const post = await this.getPostById(postId);
+      return { ...result, reactionCounts: post?.reactionCounts || {} };
+    });
+  }
+
+  // Um voto por pessoa; votar em outra opção troca o voto, votar na mesma tira.
+  async votePoll(postId, userId, optionIndex, interaction) {
+    return this.mutateState((state) => {
+      const post = requirePublishedPost(state, postId);
+      if (!post.poll?.options?.[optionIndex]) {
+        throw new CommunityError("Opção de enquete inválida.", { code: "invalid-poll-option" });
+      }
+      const index = state.pollVotes.findIndex((vote) => vote.postId === postId && vote.userId === userId);
+      const previous = index >= 0 ? state.pollVotes[index].optionIndex : null;
+      if (index >= 0) state.pollVotes.splice(index, 1);
+      if (previous === optionIndex) return { optionIndex: null, postId };
+      state.pollVotes.push({ ...clone(interaction), postId, userId, optionIndex });
+      return { optionIndex, postId };
+    }).then(async (result) => {
+      const post = await this.getPostById(postId);
+      return { ...result, pollCounts: post?.pollCounts || [] };
     });
   }
 

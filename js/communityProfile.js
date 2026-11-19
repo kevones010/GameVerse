@@ -7,22 +7,15 @@ import { createPostComposer } from "./community/ui/postComposer.js";
 import { createProfileEditor } from "./community/ui/profileEditor.js";
 import { createReportDialog } from "./community/ui/reportDialog.js";
 import { createToastRegion } from "./community/ui/toast.js";
+import { formatRelativeTime } from "./community/ui/postCard.js";
+import { POST_TYPE_LABELS, POST_TYPE_PLURALS } from "./services/community/postTypes.js";
+import { getPlayerStats } from "./services/playerStats.js";
+import { computeAchievements } from "./services/achievements.js";
+import { statusInfo } from "./services/collectionStorage.js";
+import { genreLabel } from "./utils.js";
 
-const TYPE_LABELS = {
-  guide: "Guias",
-  art: "Artes",
-  screenshot: "Screenshots",
-  discussion: "Discussões",
-  question: "Perguntas"
-};
-const BASE_TABS = [
-  ["posts", "Publicações"],
-  ["guide", "Guias"],
-  ["art", "Artes"],
-  ["screenshot", "Screenshots"],
-  ["discussion", "Discussões"],
-  ["question", "Perguntas"]
-];
+const TYPE_LABELS = POST_TYPE_PLURALS;
+const BASE_TABS = [["posts", "Publicações"], ...Object.entries(POST_TYPE_PLURALS)];
 
 const repository = new LocalCommunityRepository();
 const communityService = new CommunityService(repository, new CommunitySession(repository));
@@ -81,6 +74,8 @@ function renderSkeletons() {
 }
 
 function renderInvalidProfile() {
+  document.getElementById("profileShowcase").hidden = true;
+  document.getElementById("profileAchievements").hidden = true;
   document.getElementById("profileHero").hidden = true;
   document.getElementById("profileContent").hidden = true;
   document.getElementById("profileInvalid").hidden = false;
@@ -306,12 +301,174 @@ async function loadPosts({ append = false } = {}) {
   }
 }
 
+// ---------- Vitrine, conquistas e atividade ----------
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function gameTile(game, badge) {
+  const link = el("a", "showcase-game");
+  link.href = game.slug ? `game.html?slug=${encodeURIComponent(game.slug)}` : `game.html?id=${encodeURIComponent(game.id)}`;
+  const image = document.createElement("img");
+  image.src = /^(https:\/\/|assets\/)/i.test(game.image || "") ? game.image : "assets/brand/vee-hero.webp";
+  image.alt = "";
+  image.loading = "lazy";
+  const copy = el("span", "showcase-game-copy");
+  copy.append(el("strong", "", game.name));
+  if (badge) copy.append(el("small", "", badge));
+  link.append(image, copy);
+  return link;
+}
+
+function showcaseColumn(title, items, emptyText) {
+  const column = el("div", "showcase-column");
+  column.append(el("h3", "", title));
+  if (items.length) {
+    const list = el("div", "showcase-games");
+    list.append(...items);
+    column.append(list);
+  } else {
+    column.append(el("p", "showcase-empty", emptyText));
+  }
+  return column;
+}
+
+function renderShowcase(player, community) {
+  const section = document.getElementById("profileShowcase");
+  section.replaceChildren();
+  const heading = el("div", "profile-section-heading");
+  const titleBox = el("div");
+  titleBox.append(el("span", "eyebrow", profile.isCurrentUser ? "Sua coleção" : "Jogos em destaque"));
+  const title = el("h2", "", profile.isCurrentUser ? "Vitrine do jogador" : `Do que ${profile.displayName} mais fala`);
+  title.id = "profileShowcaseTitle";
+  titleBox.append(title);
+  heading.append(titleBox);
+
+  if (profile.isCurrentUser && player) {
+    const link = el("a", "btn btn-secondary", "Ver coleção completa");
+    link.href = "favoritos.html";
+    heading.append(link);
+    section.append(heading);
+
+    const numbers = el("dl", "showcase-numbers");
+    [
+      ["Na coleção", player.total],
+      ["Zerados", player.completed],
+      ["Jogando", player.playing],
+      ["Nota média", player.ratingsCount ? `${player.averageRating.toFixed(1)} ★` : "—"],
+      ["Gênero favorito", player.topGenre ? genreLabel(player.topGenre) : "—"]
+    ].forEach(([label, value]) => {
+      const item = el("div");
+      item.append(el("dt", "", label), el("dd", "", String(value)));
+      numbers.append(item);
+    });
+
+    const columns = el("div", "showcase-columns");
+    columns.append(
+      showcaseColumn("🎮 Jogando agora", player.nowPlaying.map((game) => gameTile(game, "Jogando")), "Nada marcado como “Jogando”. Marque na página de um jogo."),
+      showcaseColumn("⭐ Favoritos em destaque", player.favorites.map((game) => gameTile(game, "Favorito")), "Favorite jogos para montar sua vitrine.")
+    );
+    section.append(numbers, columns);
+  } else {
+    section.append(heading);
+    const games = community.topGames.map((game) => {
+      const link = el("a", "showcase-chip");
+      link.href = `comunidade-jogo.html?gameId=${encodeURIComponent(game.id)}`;
+      link.append(el("strong", "", game.name), el("small", "", `${game.posts} ${game.posts === 1 ? "publicação" : "publicações"}`));
+      return link;
+    });
+    if (games.length) {
+      const list = el("div", "showcase-chips");
+      list.append(...games);
+      section.append(list);
+    } else {
+      section.append(el("p", "showcase-empty", "Este perfil ainda não publicou sobre nenhum jogo."));
+    }
+  }
+  section.hidden = false;
+}
+
+function renderAchievements(player, community) {
+  const achievements = computeAchievements({ community, player: profile.isCurrentUser ? player : null });
+  const unlocked = achievements.filter((item) => item.unlocked).length;
+  document.getElementById("achievementsCount").textContent = `${unlocked} de ${achievements.length} desbloqueadas`;
+  document.getElementById("achievementsList").replaceChildren(...achievements.map((achievement) => {
+    const item = el("li", `achievement ${achievement.unlocked ? "is-unlocked" : "is-locked"}`);
+    const image = document.createElement("img");
+    image.src = achievement.icon;
+    image.alt = "";
+    const copy = el("div", "achievement-copy");
+    copy.append(el("strong", "", achievement.title), el("span", "", achievement.description));
+    const bar = el("div", "achievement-progress");
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-valuemin", "0");
+    bar.setAttribute("aria-valuemax", String(achievement.goal));
+    bar.setAttribute("aria-valuenow", String(achievement.progress));
+    bar.setAttribute("aria-label", `Progresso de ${achievement.title}`);
+    const fill = el("span");
+    fill.style.width = `${(achievement.progress / achievement.goal) * 100}%`;
+    bar.append(fill);
+    copy.append(bar, el("small", "achievement-status", achievement.unlocked ? "✓ Desbloqueada" : `${achievement.progress}/${achievement.goal}`));
+    item.append(image, copy);
+    return item;
+  }));
+  document.getElementById("profileAchievements").hidden = false;
+}
+
+const COLLECTION_VERBS = { want: "Quer jogar", playing: "Começou a jogar", completed: "Zerou", dropped: "Abandonou" };
+
+function renderActivity(events, player) {
+  const items = events.map((event) => {
+    if (event.kind === "review") {
+      return { at: event.createdAt, icon: "⭐", text: `Analisou ${event.gameName || "um jogo"}${event.rating ? ` · ${"★".repeat(event.rating)}` : ""}` };
+    }
+    if (event.kind === "comment") return { at: event.createdAt, icon: "💬", text: `Comentou em “${event.title}”` };
+    return { at: event.createdAt, icon: "📝", text: `Publicou ${(POST_TYPE_LABELS[event.postType] || "post").toLowerCase()}: “${event.title}”` };
+  });
+  if (profile.isCurrentUser && player) {
+    player.collectionEvents.forEach((entry) => {
+      const info = statusInfo(entry.status);
+      if (info) items.push({ at: entry.updatedAt, icon: info.icon, text: `${COLLECTION_VERBS[entry.status]} ${entry.name}` });
+    });
+  }
+  items.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const list = document.getElementById("profileActivity");
+  if (!items.length) {
+    list.replaceChildren(el("li", "activity-empty", "Nenhuma atividade ainda."));
+    return;
+  }
+  list.replaceChildren(...items.slice(0, 8).map((item) => {
+    const li = el("li", "activity-item");
+    li.append(el("span", "activity-icon", item.icon));
+    const copy = el("span", "activity-copy");
+    const time = el("time", "", formatRelativeTime(item.at));
+    time.dateTime = item.at;
+    copy.append(el("span", "", item.text), time);
+    li.append(copy);
+    return li;
+  }));
+}
+
+async function renderProfileExtras() {
+  const [community, events] = await Promise.all([
+    communityService.getUserCommunityStats(targetUserId),
+    communityService.getUserActivity(targetUserId, 10)
+  ]);
+  const player = profile.isCurrentUser ? getPlayerStats() : null;
+  renderShowcase(player, community);
+  renderAchievements(player, community);
+  renderActivity(events, player);
+}
+
 async function reloadProfile({ keepFeed = false } = {}) {
   profile = await communityService.getUserProfile(targetUserId);
   if (!profile) return renderInvalidProfile();
   renderProfileHeader();
   renderTabs();
-  await Promise.all([renderSocialLists(), keepFeed ? Promise.resolve() : loadPosts()]);
+  await Promise.all([renderSocialLists(), renderProfileExtras(), keepFeed ? Promise.resolve() : loadPosts()]);
 }
 
 loadMoreButton.addEventListener("click", () => loadPosts({ append: true }));
@@ -367,7 +524,7 @@ async function initialize() {
 
     renderProfileHeader();
     renderTabs();
-    await Promise.all([renderSocialLists(), loadPosts()]);
+    await Promise.all([renderSocialLists(), renderProfileExtras(), loadPosts()]);
   } catch (error) {
     notify(error.message || "Não foi possível abrir o perfil.", "error");
     renderInvalidProfile();

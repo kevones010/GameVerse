@@ -889,3 +889,35 @@ a.price-card {
 /* Links da caixa de informações (o "Abrir" do site oficial ficava azul-escuro, quase invisível). */
 #game-info a { color: #ff8fa3; font-weight: 700; }
 #game-info a:hover { color: #ffd1da; }
+
+/* ===== Sinopse traduzida ===== */
+.synopsis-copy { white-space: pre-line; }
+.synopsis-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.synopsis-status:empty { display: none; }
+.synopsis-toggle {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+  cursor: pointer;
+}
+.synopsis-toggle:hover { border-color: rgba(255, 255, 255, 0.4); }
+.synopsis-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: synopsisSpin 0.8s linear infinite;
+}
+@keyframes synopsisSpin { to { transform: rotate(360deg); } }

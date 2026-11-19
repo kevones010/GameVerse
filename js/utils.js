@@ -63,3 +63,19 @@ export function observeLazyImages() {
 
   document.querySelectorAll("img[loading='lazy']").forEach((image) => observer.observe(image));
 }
+
+// Nomes dos gêneros da RAWG em português (para os cards).
+const GENRE_PT = {
+  'Action': 'Ação', 'Adventure': 'Aventura', 'RPG': 'RPG', 'Indie': 'Indie', 'Strategy': 'Estratégia',
+  'Shooter': 'Tiro', 'Casual': 'Casual', 'Simulation': 'Simulação', 'Puzzle': 'Puzzle', 'Arcade': 'Arcade',
+  'Platformer': 'Plataforma', 'Racing': 'Corrida', 'Massively Multiplayer': 'MMO', 'Sports': 'Esportes',
+  'Fighting': 'Luta', 'Family': 'Família', 'Board Games': 'Tabuleiro', 'Educational': 'Educativo', 'Card': 'Cartas'
+};
+
+export function genreLabel(name) {
+  return GENRE_PT[name] || name;
+}
+
+export function genreLine(game, max = 2) {
+  return (game?.genres || []).map((genre) => genreLabel(genre?.name)).filter(Boolean).slice(0, max).join(' · ');
+}

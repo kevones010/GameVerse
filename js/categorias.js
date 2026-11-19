@@ -1,5 +1,5 @@
 import { getGamesList, getGamesPage } from './services/rawgService.js';
-import { escapeHtml, sortByRelevance } from './utils.js';
+import { escapeHtml, sortByRelevance, genreLine } from './utils.js';
 import { navigateWithVee } from './motion.js';
 
 const PAGE_SIZE = 20;
@@ -131,6 +131,7 @@ function createCatalogCard(game) {
       </div>
       <div class="card-body">
         <h3>${escapeHtml(game.name)}</h3>
+        ${genreLine(game) ? `<p class="card-genres">${escapeHtml(genreLine(game))}</p>` : ''}
         <div class="meta">
           <span>${year}</span>
           ${playtime}

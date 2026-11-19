@@ -61,6 +61,16 @@
           </div>
         </section>
 
+        <section class="profile-showcase" id="profileShowcase" aria-labelledby="profileShowcaseTitle" hidden></section>
+
+        <section class="profile-achievements" id="profileAchievements" aria-labelledby="achievementsTitle" hidden>
+          <div class="profile-section-heading">
+            <div><span class="eyebrow">Conquistas da Vee</span><h2 id="achievementsTitle">Conquistas</h2></div>
+            <span class="feed-count" id="achievementsCount"></span>
+          </div>
+          <ul class="achievement-grid" id="achievementsList"></ul>
+        </section>
+
         <div class="profile-layout" id="profileContent">
           <section class="feed-panel profile-feed-panel" aria-labelledby="profileFeedTitle">
             <div class="profile-tabs" id="profileTabs" role="group" aria-label="Conteúdo do perfil"></div>
@@ -74,6 +84,10 @@
           </section>
 
           <aside class="discovery-column profile-sidebar" aria-label="Informações sociais do perfil">
+            <section class="discovery-card">
+              <div class="discovery-heading"><span aria-hidden="true">⏱</span><h2>Atividade recente</h2></div>
+              <ol class="activity-list" id="profileActivity"></ol>
+            </section>
             <section class="discovery-card">
               <div class="discovery-heading"><span aria-hidden="true">◎</span><h2>Conteúdo</h2></div>
               <dl class="profile-breakdown" id="profileBreakdown"></dl>

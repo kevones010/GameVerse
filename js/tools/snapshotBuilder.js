@@ -2,6 +2,7 @@
 // Usado pela página modo-apresentacao.html (no navegador) e por tools/modo-apresentacao.mjs (Node).
 // Não sabe gravar arquivos sozinho: recebe uma função writeFile(caminhoRelativo, conteúdo).
 import { snapshotKey } from '../services/offlineSnapshot.js';
+import { homeQueries, upcomingQuery } from '../homeQueries.js';
 
 const BASE_URL = 'https://api.rawg.io/api';
 const CONCURRENCY = 4;
@@ -17,15 +18,8 @@ const FAVORITE_NAMES = [
   'Super Mario World', 'Yakuza: Like a Dragon', 'Super Mario 64', 'Super Mario Galaxy',
   'Pokémon Black 2', 'Zelda Ocarina of Time', 'Hollow Knight', 'Resident Evil 2 Remake'
 ];
-const HOME_LISTS = [
-  { dates: '2024-01-01,2026-12-31', ordering: '-added', page_size: 12 },
-  { ordering: '-added', page_size: 12 },
-  { ordering: '-rating', page_size: 12 },
-  { genres: '5', ordering: '-rating', page_size: 8 },
-  { genres: '4', ordering: '-rating', page_size: 8 },
-  { genres: '3', ordering: '-rating', page_size: 8 },
-  { genres: '51', ordering: '-rating', page_size: 8 }
-];
+// Mesmas consultas da Home (js/homeQueries.js).
+const HOME_LISTS = Object.values(homeQueries());
 
 // ---------- Primeira página de cada filtro do catálogo (manter igual a js/categorias.js) ----------
 const CATALOG_FILTERS = [
@@ -36,10 +30,6 @@ const CATALOG_FILTERS = [
   ...['1990-01-01,1999-12-31', '2000-01-01,2009-12-31', '2010-01-01,2019-12-31', '2020-01-01,2029-12-31'].map((dates) => ({ dates })),
   ...['70,100', '80,100', '90,100'].map((metacritic) => ({ metacritic }))
 ];
-
-function isoDate(date) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-}
 
 async function rawg(apiKey, endpoint, params = {}, attempt = 1) {
   const url = new URL(`${BASE_URL}${endpoint}`);
@@ -138,10 +128,8 @@ export async function buildSnapshot({ apiKey, writeFile, log = console.log, with
   await runPool(FAVORITE_NAMES, (name) => saveList({ search: name, page_size: 1 }, { featured: true }));
 
   log('2/5 Próximos lançamentos e "Me surpreenda"…');
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
   await runPool([
-    async () => addToPool(trimList(await rawg(apiKey, '/games', { dates: `${isoDate(tomorrow)},${isoDate(nextYear)}`, ordering: '-added', page_size: 20 })).results, true),
+    async () => addToPool(trimList(await rawg(apiKey, '/games', upcomingQuery())).results, true),
     async () => addToPool(trimList(await rawg(apiKey, '/games', { metacritic: '80,100', ordering: '-added', page_size: 40 })).results)
   ], (task) => task());
 

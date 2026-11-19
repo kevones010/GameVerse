@@ -1,13 +1,8 @@
 import { createCommentsSection } from "./comments.js";
 import { createSpoilerContent } from "./spoilerContent.js";
+import { POST_TYPE_LABELS, REACTION_EMOJIS } from "../../services/community/postTypes.js";
 
-const TYPE_LABELS = {
-  guide: "Guia",
-  art: "Arte",
-  screenshot: "Screenshot",
-  discussion: "Discussão",
-  question: "Pergunta"
-};
+const TYPE_LABELS = POST_TYPE_LABELS;
 
 function safeAssetUrl(value, fallback = "") {
   const url = String(value || "").trim();
@@ -46,7 +41,15 @@ function createPostBody(post) {
   content.className = "post-content";
   content.textContent = truncate(post.content);
 
-  fragment.append(title, content);
+  fragment.append(title);
+  if (post.type === "review" && post.rating) {
+    const rating = document.createElement("p");
+    rating.className = "post-rating";
+    rating.setAttribute("aria-label", `Nota ${post.rating} de 5`);
+    rating.textContent = `${"★".repeat(post.rating)}${"☆".repeat(5 - post.rating)}  ${post.rating}/5`;
+    fragment.append(rating);
+  }
+  fragment.append(content);
 
   const mediaItems = (post.media || []).filter((item) => item?.type === "image" && safeAssetUrl(item.url));
   if (mediaItems.length) {
@@ -67,15 +70,104 @@ function createPostBody(post) {
   if (post.tags?.length) {
     const tags = document.createElement("div");
     tags.className = "post-tags";
+    // Hashtags clicáveis: abrem o feed filtrado por aquela tag.
     post.tags.forEach((tag) => {
-      const label = document.createElement("span");
+      const label = document.createElement("a");
+      label.href = `comunidade.html?tag=${encodeURIComponent(tag)}`;
       label.textContent = `#${tag}`;
+      label.setAttribute("aria-label", `Ver publicações com a hashtag ${tag}`);
       tags.appendChild(label);
     });
     fragment.appendChild(tags);
   }
 
   return fragment;
+}
+
+function createPoll(post, { service, notify }) {
+  const poll = document.createElement("div");
+  poll.className = "post-poll";
+  poll.setAttribute("role", "group");
+  poll.setAttribute("aria-label", "Enquete");
+
+  const render = () => {
+    const voted = post.poll.myVote !== null;
+    poll.replaceChildren();
+    post.poll.options.forEach((option, index) => {
+      const percent = post.poll.total ? Math.round((option.votes / post.poll.total) * 100) : 0;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "poll-option";
+      button.classList.toggle("is-mine", post.poll.myVote === index);
+      button.setAttribute("aria-pressed", String(post.poll.myVote === index));
+      button.style.setProperty("--poll-percent", `${voted ? percent : 0}%`);
+      const label = document.createElement("span");
+      label.className = "poll-label";
+      label.textContent = `${post.poll.myVote === index ? "✓ " : ""}${option.label}`;
+      const value = document.createElement("span");
+      value.className = "poll-value";
+      value.textContent = voted ? `${percent}%` : "";
+      button.append(label, value);
+      button.addEventListener("click", async () => {
+        poll.querySelectorAll("button").forEach((item) => { item.disabled = true; });
+        try {
+          const result = await service.votePoll(post.id, index);
+          post.poll.myVote = result.optionIndex;
+          post.poll.options.forEach((item, optionIndex) => { item.votes = result.pollCounts[optionIndex] || 0; });
+          post.poll.total = result.pollCounts.reduce((sum, count) => sum + count, 0);
+          render();
+        } catch (error) {
+          notify(error.message || "Não foi possível registrar o voto.", "error");
+          render();
+        }
+      });
+      poll.append(button);
+    });
+    const footer = document.createElement("p");
+    footer.className = "poll-footer";
+    footer.textContent = `${post.poll.total} ${post.poll.total === 1 ? "voto" : "votos"}${voted ? " · clique de novo para tirar seu voto" : " · vote para ver o resultado"}`;
+    poll.append(footer);
+  };
+
+  render();
+  return poll;
+}
+
+function createReactions(post, { service, notify }) {
+  const group = document.createElement("div");
+  group.className = "post-reactions";
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", "Reações");
+  (post.reactions || []).forEach((reaction) => {
+    const info = REACTION_EMOJIS[reaction.emoji];
+    if (!info) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "post-reaction";
+    const update = () => {
+      button.classList.toggle("is-active", reaction.mine);
+      button.setAttribute("aria-pressed", String(reaction.mine));
+      button.setAttribute("aria-label", `${info.label}: ${reaction.count}`);
+      button.title = info.label;
+      button.textContent = `${info.emoji} ${reaction.count}`;
+    };
+    update();
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const result = await service.toggleReaction(post.id, reaction.emoji);
+        reaction.mine = result.reacted;
+        reaction.count = result.reactionCounts[reaction.emoji] || 0;
+        update();
+      } catch (error) {
+        notify(error.message || "Não foi possível reagir.", "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+    group.append(button);
+  });
+  return group;
 }
 
 function setLikeState(button, liked, count) {
@@ -278,7 +370,8 @@ export function createPostCard(post, options) {
     }
   });
 
-  actions.append(like, comments.button, save);
-  article.append(header, context, body, actions, comments.panel);
+  actions.append(like, createReactions(post, { service, notify }), comments.button, save);
+  const poll = post.poll ? createPoll(post, { service, notify }) : null;
+  article.append(header, context, body, ...(poll ? [poll] : []), actions, comments.panel);
   return article;
 }

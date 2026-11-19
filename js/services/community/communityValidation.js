@@ -1,5 +1,8 @@
-export const COMMUNITY_SCHEMA_VERSION = 2;
-export const POST_TYPES = Object.freeze(["guide", "art", "screenshot", "discussion", "question"]);
+import { createSeedInteractions, createSeedExtras } from "../../../data/communitySeed.js";
+
+export const COMMUNITY_SCHEMA_VERSION = 3;
+export const POST_TYPES = Object.freeze(["guide", "art", "screenshot", "discussion", "question", "review"]);
+export const REACTIONS = Object.freeze(["fire", "laugh", "wow"]);
 export const FEED_TABS = Object.freeze(["for-you", "following", "trending", "recent", "saved"]);
 export const REPORT_REASONS = Object.freeze(["spam", "offensive", "spoiler", "misinformation", "other"]);
 export const PROFILE_AVATARS = Object.freeze([
@@ -11,7 +14,10 @@ export const PROFILE_AVATARS = Object.freeze([
   "assets/vee/avatars/vee-avatar-pink.webp"
 ]);
 
-const COLLECTIONS = ["users", "posts", "comments", "likes", "savedPosts", "follows", "reports"];
+const COLLECTIONS = ["users", "posts", "comments", "likes", "savedPosts", "follows", "reports", "reactions", "pollVotes"];
+const POLL_OPTIONS_MIN = 2;
+const POLL_OPTIONS_MAX = 4;
+const POLL_OPTION_MAX = 60;
 const POST_TITLE_MIN = 4;
 const POST_TITLE_MAX = 120;
 const POST_CONTENT_MIN = 5;
@@ -124,16 +130,10 @@ function createLegacyInteractions(state) {
   return { likes, comments, savedPosts };
 }
 
-export function migrateCommunityState(state) {
-  if (!state || typeof state !== "object") {
-    throw new Error("Dados locais da comunidade são inválidos.");
-  }
-
-  if (state.schemaVersion === COMMUNITY_SCHEMA_VERSION) return state;
-  if (state.schemaVersion !== 1 || !Array.isArray(state.posts) || !Array.isArray(state.users)) {
+function migrateV1ToV2(state) {
+  if (!Array.isArray(state.posts) || !Array.isArray(state.users)) {
     throw new Error("Versão local da comunidade não suportada.");
   }
-
   const interactions = createLegacyInteractions({
     ...state,
     likes: Array.isArray(state.likes) ? state.likes : [],
@@ -143,13 +143,67 @@ export function migrateCommunityState(state) {
 
   return {
     ...state,
-    schemaVersion: COMMUNITY_SCHEMA_VERSION,
+    schemaVersion: 2,
     comments: interactions.comments,
     likes: interactions.likes,
     savedPosts: interactions.savedPosts,
     follows: Array.isArray(state.follows) ? state.follows : [],
     reports: Array.isArray(state.reports) ? state.reports : []
   };
+}
+
+// v3: troca as interações sintéticas (212 curtidas com 6 usuários…) por interações reais dos
+// usuários de demonstração, e cria reações, enquetes e análises. O que a pessoa fez é preservado.
+function migrateV2ToV3(state) {
+  const isSynthetic = (item) => item?.origin === "seed-summary";
+  const extras = createSeedExtras();
+  const posts = [...state.posts];
+  extras.posts.forEach((post) => {
+    if (!posts.some((item) => item.id === post.id)) posts.push(post);
+  });
+  posts.forEach((post) => {
+    const seedPoll = extras.polls[post.id];
+    if (seedPoll && !post.poll) post.poll = seedPoll;
+  });
+
+  const seeded = createSeedInteractions(posts, state.users);
+  const keep = (list) => (Array.isArray(list) ? list.filter((item) => !isSynthetic(item)) : []);
+  const mergeById = (current, additions, sameAs) => {
+    const merged = [...current];
+    additions.forEach((item) => {
+      if (!merged.some((existing) => existing.id === item.id || sameAs(existing, item))) merged.push(item);
+    });
+    return merged;
+  };
+  const samePostUser = (a, b) => a.postId === b.postId && a.userId === b.userId;
+
+  return {
+    ...state,
+    schemaVersion: 3,
+    posts,
+    likes: mergeById(keep(state.likes), seeded.likes, samePostUser),
+    savedPosts: mergeById(keep(state.savedPosts), seeded.savedPosts, samePostUser),
+    comments: mergeById(keep(state.comments), seeded.comments, () => false),
+    follows: mergeById(Array.isArray(state.follows) ? state.follows : [], seeded.follows,
+      (a, b) => a.followerId === b.followerId && a.followingId === b.followingId),
+    reactions: seeded.reactions,
+    pollVotes: seeded.pollVotes,
+    reports: Array.isArray(state.reports) ? state.reports : []
+  };
+}
+
+export function migrateCommunityState(state) {
+  if (!state || typeof state !== "object") {
+    throw new Error("Dados locais da comunidade são inválidos.");
+  }
+
+  let current = state;
+  if (current.schemaVersion === 1) current = migrateV1ToV2(current);
+  if (current.schemaVersion === 2) current = migrateV2ToV3(current);
+  if (current.schemaVersion !== COMMUNITY_SCHEMA_VERSION) {
+    throw new Error("Versão local da comunidade não suportada.");
+  }
+  return current;
 }
 
 export function assertCommunityState(state) {
@@ -171,6 +225,8 @@ export function assertCommunityState(state) {
     && typeof post.title === "string"
     && typeof post.content === "string"
     && ["published", "deleted"].includes(post.status)
+    && (post.poll === undefined || post.poll === null || isValidPoll(post.poll))
+    && (post.rating === undefined || post.rating === null || (Number.isInteger(post.rating) && post.rating >= 1 && post.rating <= 5))
   ));
   const commentsAreValid = state.comments.every((comment) => (
     typeof comment?.id === "string"
@@ -203,11 +259,31 @@ export function assertCommunityState(state) {
     && REPORT_REASONS.includes(report?.reason)
   ));
 
-  if (!usersAreValid || !postsAreValid || !commentsAreValid || !likesAreValid || !savesAreValid || !followsAreValid || !reportsAreValid) {
+  const reactionsAreValid = state.reactions.every((reaction) => (
+    typeof reaction?.id === "string"
+    && typeof reaction?.postId === "string"
+    && typeof reaction?.userId === "string"
+    && REACTIONS.includes(reaction?.emoji)
+  ));
+  const pollVotesAreValid = state.pollVotes.every((vote) => (
+    typeof vote?.id === "string"
+    && typeof vote?.postId === "string"
+    && typeof vote?.userId === "string"
+    && Number.isInteger(vote?.optionIndex) && vote.optionIndex >= 0 && vote.optionIndex < POLL_OPTIONS_MAX
+  ));
+
+  if (!usersAreValid || !postsAreValid || !commentsAreValid || !likesAreValid || !savesAreValid || !followsAreValid
+    || !reportsAreValid || !reactionsAreValid || !pollVotesAreValid) {
     throw new Error("Usuários, publicações ou interações locais são inválidos.");
   }
 
   return state;
+}
+
+function isValidPoll(poll) {
+  return Array.isArray(poll?.options)
+    && poll.options.length >= POLL_OPTIONS_MIN && poll.options.length <= POLL_OPTIONS_MAX
+    && poll.options.every((option) => typeof option === "string" && option.trim() && option.length <= POLL_OPTION_MAX);
 }
 
 export function normalizeTags(value) {
@@ -272,9 +348,30 @@ export function validatePost(input, availableGames = []) {
   if (rawMediaUrl && !mediaUrl) fieldErrors.mediaUrl = "Use uma URL de imagem HTTPS válida.";
   if (spoilerLabel.length > SPOILER_LABEL_MAX) fieldErrors.spoilerLabel = "O rótulo pode ter no máximo 120 caracteres.";
 
+  // Enquete: só em perguntas, com 2 a 4 opções.
+  const pollOptions = (Array.isArray(input?.pollOptions) ? input.pollOptions : [])
+    .map(asTrimmedText).filter(Boolean);
+  let poll = null;
+  if (type === "question" && pollOptions.length) {
+    if (pollOptions.length < POLL_OPTIONS_MIN) fieldErrors.pollOptions = "A enquete precisa de pelo menos 2 opções.";
+    else if (pollOptions.length > POLL_OPTIONS_MAX) fieldErrors.pollOptions = "A enquete pode ter no máximo 4 opções.";
+    else if (pollOptions.some((option) => option.length > POLL_OPTION_MAX)) fieldErrors.pollOptions = "Cada opção pode ter no máximo 60 caracteres.";
+    else if (new Set(pollOptions.map((option) => option.toLocaleLowerCase("pt-BR"))).size !== pollOptions.length) fieldErrors.pollOptions = "As opções precisam ser diferentes.";
+    else poll = { options: pollOptions };
+  }
+
+  // Nota da análise: 1 a 5 estrelas, opcional.
+  const ratingNumber = Number(input?.rating);
+  const rating = type === "review" && Number.isInteger(ratingNumber) && ratingNumber >= 1 && ratingNumber <= 5 ? ratingNumber : null;
+  if (type === "review" && input?.rating !== undefined && input?.rating !== null && input?.rating !== "" && rating === null) {
+    fieldErrors.rating = "A nota precisa ser de 1 a 5.";
+  }
+
   if (Object.keys(fieldErrors).length) throw new CommunityValidationError(fieldErrors);
 
   return {
+    poll,
+    rating,
     type,
     title,
     content,
@@ -352,9 +449,12 @@ export function normalizeListOptions(options = {}) {
     throw new CommunityError("Jogo inválido.", { code: "invalid-game-id" });
   }
 
+  const tag = normalizeTags([options.tag])[0] || null;
+
   return {
     tab,
     type,
+    tag,
     gameId,
     cursor: Number.isFinite(cursorNumber) && cursorNumber >= 0 ? cursorNumber : 0,
     limit: Number.isFinite(limitNumber) ? Math.min(12, Math.max(1, limitNumber)) : 6

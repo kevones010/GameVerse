@@ -2,8 +2,7 @@ import { CommunityService } from "../../services/community/communityService.js";
 import { CommunitySession } from "../../services/community/communitySession.js";
 import { LocalCommunityRepository } from "../../services/community/localCommunityRepository.js";
 import { normalizeGameId } from "../../services/community/communityValidation.js";
-
-const TYPE_LABELS = { guide: "Guia", art: "Arte", screenshot: "Screenshot", discussion: "Discussão", question: "Pergunta" };
+import { POST_TYPE_LABELS as TYPE_LABELS } from "../../services/community/postTypes.js";
 
 export async function renderGameCommunityPreview(section, gameId) {
   const id = normalizeGameId(gameId);

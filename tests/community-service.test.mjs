@@ -99,7 +99,7 @@ test('snapshot independente de RAWG, sem objeto inteiro e remoção explícita',
 test('gameId filtra antes da ordenação/paginação, nunca retorna feed global para URL inválida', async () => {
   const { service } = fixture();
   const id = 12345678;
-  for (let index = 0; index < 9; index++) await service.createPost(input({ gameId: id, title: `Publicação ${index}`, type: POST_TYPES[index % 5] }));
+  for (let index = 0; index < 9; index++) await service.createPost(input({ gameId: id, title: `Publicação ${index}`, type: POST_TYPES[index % POST_TYPES.length] }));
   const first = await service.listPostsByGame(String(id), { tab: 'trending', limit: 6 });
   const second = await service.listPostsByGame(id, { tab: 'trending', limit: 6, cursor: first.nextCursor });
   assert.equal(first.total, 9);
@@ -133,7 +133,7 @@ test('stats, tags e criadores derivados exclusivamente de published/public e atu
   const stats = await service.getCommunityGameStats('049');
   assert.equal(stats.total, 1);
   assert.equal(await service.countPostsByGame(49), 1);
-  assert.deepEqual(stats.counts, { guide: 1, art: 0, screenshot: 0, discussion: 0, question: 0 });
+  assert.deepEqual(stats.counts, { guide: 1, art: 0, screenshot: 0, discussion: 0, question: 0, review: 0 });
   assert.equal(stats.tags.length, 2);
   assert.equal(stats.creators[0].postsCount, 1);
   assert.equal(stats.game.id, 49);

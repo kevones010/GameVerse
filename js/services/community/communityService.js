@@ -8,6 +8,7 @@ import {
   normalizeGameId,
   normalizeListOptions,
   POST_TYPES,
+  REACTIONS,
   validateComment,
   validatePost,
   validateProfile,
@@ -97,14 +98,33 @@ export class CommunityService {
   }
 
   async interactionContext(userId) {
-    const [likes, savedPosts] = await Promise.all([
+    const [likes, savedPosts, reactions, pollVotes] = await Promise.all([
       this.repository.listLikesByUser(userId),
-      this.repository.listSavedPostsByUser(userId)
+      this.repository.listSavedPostsByUser(userId),
+      this.repository.listReactionsByUser(userId),
+      this.repository.listPollVotesByUser(userId)
     ]);
+    const reactionsByPost = new Map();
+    reactions.forEach((reaction) => {
+      if (!reactionsByPost.has(reaction.postId)) reactionsByPost.set(reaction.postId, new Set());
+      reactionsByPost.get(reaction.postId).add(reaction.emoji);
+    });
     return {
       likedPostIds: new Set(likes.map((like) => like.postId)),
       savedPostIds: new Set(savedPosts.map((savedPost) => savedPost.postId)),
-      savedAtByPost: new Map(savedPosts.map((savedPost) => [savedPost.postId, savedPost.createdAt]))
+      savedAtByPost: new Map(savedPosts.map((savedPost) => [savedPost.postId, savedPost.createdAt])),
+      reactionsByPost,
+      voteByPost: new Map(pollVotes.map((vote) => [vote.postId, vote.optionIndex]))
+    };
+  }
+
+  // O que a pessoa atual já fez neste post (curtiu, salvou, reagiu, votou).
+  stateFor(post, interactions) {
+    return {
+      liked: interactions.likedPostIds.has(post.id),
+      saved: interactions.savedPostIds.has(post.id),
+      reactions: interactions.reactionsByPost.get(post.id) || new Set(),
+      pollVote: interactions.voteByPost.get(post.id)
     };
   }
 
@@ -131,6 +151,7 @@ export class CommunityService {
       && post.visibility === "public"
       && (normalized.gameId === null || normalizeGameId(post.gameId) === normalized.gameId)
       && (normalized.type === "all" || post.type === normalized.type)
+      && (!normalized.tag || (post.tags || []).map((tag) => String(tag).toLowerCase()).includes(normalized.tag))
       && (normalized.tab !== "saved" || interactions.savedPostIds.has(post.id))
       && (normalized.tab !== "following" || followingIds.has(post.authorId))
     ));
@@ -140,10 +161,7 @@ export class CommunityService {
     return {
       items: orderedPosts
         .slice(normalized.cursor, end)
-        .map((post) => mapCommunityPost(post, usersById.get(post.authorId), {
-          liked: interactions.likedPostIds.has(post.id),
-          saved: interactions.savedPostIds.has(post.id)
-        })),
+        .map((post) => mapCommunityPost(post, usersById.get(post.authorId), this.stateFor(post, interactions))),
       nextCursor: end < orderedPosts.length ? String(end) : null,
       total: orderedPosts.length
     };
@@ -160,10 +178,7 @@ export class CommunityService {
       this.repository.getUserById(post.authorId),
       this.interactionContext(currentUser.id)
     ]);
-    return mapCommunityPost(post, author, {
-      liked: interactions.likedPostIds.has(post.id),
-      saved: interactions.savedPostIds.has(post.id)
-    });
+    return mapCommunityPost(post, author, this.stateFor(post, interactions));
   }
 
   async listPostsByGame(gameId, options = {}) {
@@ -273,14 +288,12 @@ export class CommunityService {
       this.interactionContext(currentUser.id)
     ]);
     const visible = posts.filter((post) => post.authorId === userId && post.status === "published" && post.visibility === "public"
-      && (normalized.type === "all" || post.type === normalized.type));
+      && (normalized.type === "all" || post.type === normalized.type)
+      && (!normalized.tag || (post.tags || []).map((tag) => String(tag).toLowerCase()).includes(normalized.tag)));
     const ordered = sortPosts(visible, normalized.tab, interactions.savedAtByPost);
     const end = normalized.cursor + normalized.limit;
     return {
-      items: ordered.slice(normalized.cursor, end).map((post) => mapCommunityPost(post, user, {
-        liked: interactions.likedPostIds.has(post.id),
-        saved: interactions.savedPostIds.has(post.id)
-      })),
+      items: ordered.slice(normalized.cursor, end).map((post) => mapCommunityPost(post, user, this.stateFor(post, interactions))),
       nextCursor: end < ordered.length ? String(end) : null,
       total: ordered.length
     };
@@ -303,9 +316,7 @@ export class CommunityService {
     const ordered = sortPosts(visible, "recent");
     const end = normalized.cursor + normalized.limit;
     return {
-      items: ordered.slice(normalized.cursor, end).map((post) => mapCommunityPost(post, usersById.get(post.authorId), {
-        liked: true, saved: interactions.savedPostIds.has(post.id)
-      })),
+      items: ordered.slice(normalized.cursor, end).map((post) => mapCommunityPost(post, usersById.get(post.authorId), this.stateFor(post, interactions))),
       nextCursor: end < ordered.length ? String(end) : null,
       total: ordered.length
     };
@@ -433,7 +444,7 @@ export class CommunityService {
       commentsCount: 0,
       savesCount: 0
     });
-    return mapCommunityPost(post, currentUser, { liked: false, saved: false });
+    return mapCommunityPost(post, currentUser, { liked: false, saved: false, reactions: new Set() });
   }
 
   async updatePost(postId, input) {
@@ -454,10 +465,7 @@ export class CommunityService {
       updatedAt: new Date(updatedTimestamp).toISOString()
     }, currentUser.id);
     const interactions = await this.interactionContext(currentUser.id);
-    return mapCommunityPost(post, currentUser, {
-      liked: interactions.likedPostIds.has(post.id),
-      saved: interactions.savedPostIds.has(post.id)
-    });
+    return mapCommunityPost(post, currentUser, this.stateFor(post, interactions));
   }
 
   async deletePost(postId) {
@@ -479,6 +487,80 @@ export class CommunityService {
       id: createId("like"),
       createdAt: new Date().toISOString()
     });
+  }
+
+  async toggleReaction(postId, emoji) {
+    if (!REACTIONS.includes(emoji)) throw new CommunityError("Reação inválida.", { code: "invalid-reaction" });
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    return this.repository.toggleReaction(postId, currentUser.id, emoji, {
+      id: createId("reaction"),
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  async votePoll(postId, optionIndex) {
+    const index = Number(optionIndex);
+    if (!Number.isInteger(index) || index < 0) throw new CommunityError("Opção de enquete inválida.", { code: "invalid-poll-option" });
+    await this.initialize();
+    const currentUser = await this.requireCurrentUser();
+    return this.repository.votePoll(postId, currentUser.id, index, {
+      id: createId("vote"),
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  // Números usados nas conquistas do perfil.
+  async getUserCommunityStats(userId) {
+    await this.initialize();
+    const [posts, comments, followers] = await Promise.all([
+      this.repository.listPosts(),
+      this.repository.listCommentsByUser(userId),
+      this.repository.listFollowersByUser(userId)
+    ]);
+    const own = posts.filter((post) => post.authorId === userId && post.status === "published");
+    const byType = Object.fromEntries(POST_TYPES.map((type) => [type, 0]));
+    own.forEach((post) => { byType[post.type] += 1; });
+    return {
+      posts: own.length,
+      byType,
+      comments: comments.length,
+      likesReceived: own.reduce((sum, post) => sum + (Number(post.likesCount) || 0), 0),
+      followers: followers.length,
+      gamesDiscussed: new Set(own.map((post) => post.gameId).filter(Boolean)).size,
+      topGames: [...own.filter((post) => post.gameId).reduce((map, post) => {
+        const entry = map.get(post.gameId) || { id: post.gameId, name: post.gameName || "Jogo", slug: post.gameSlug || "", posts: 0 };
+        entry.posts += 1;
+        return map.set(post.gameId, entry);
+      }, new Map()).values()].sort((a, b) => b.posts - a.posts).slice(0, 3)
+    };
+  }
+
+  // Linha do tempo do perfil: posts e comentários mais recentes da pessoa.
+  async getUserActivity(userId, limit = 10) {
+    await this.initialize();
+    const [posts, comments] = await Promise.all([
+      this.repository.listPosts(),
+      this.repository.listCommentsByUser(userId)
+    ]);
+    const postsById = new Map(posts.map((post) => [post.id, post]));
+    const events = [];
+    posts.filter((post) => post.authorId === userId && post.status === "published" && post.visibility === "public")
+      .forEach((post) => events.push({
+        kind: post.type === "review" ? "review" : "post",
+        createdAt: post.createdAt,
+        postType: post.type,
+        title: post.title,
+        gameName: post.gameName || "",
+        gameId: post.gameId || null,
+        rating: Number.isInteger(post.rating) ? post.rating : null
+      }));
+    comments.forEach((comment) => {
+      const post = postsById.get(comment.postId);
+      if (!post || post.status !== "published") return;
+      events.push({ kind: "comment", createdAt: comment.createdAt, title: post.title, gameName: post.gameName || "", gameId: post.gameId || null });
+    });
+    return events.sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt)).slice(0, limit);
   }
 
   async toggleSaved(postId) {

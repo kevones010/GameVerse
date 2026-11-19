@@ -5,51 +5,153 @@ function isoBefore(now, milliseconds) {
   return new Date(now.getTime() - milliseconds).toISOString();
 }
 
-function materializeSeedInteractions(posts) {
+// Número "aleatório" mas sempre igual para o mesmo texto: os dados de demonstração não mudam a cada F5.
+function stableHash(text) {
+  let hash = 2166136261;
+  for (const char of String(text)) {
+    hash ^= char.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function afterPost(post, minutes, now) {
+  const created = new Date(post.createdAt).getTime() + minutes * MINUTE;
+  return new Date(Math.min(created, now.getTime() - MINUTE)).toISOString();
+}
+
+// Comentários escritos à mão para alguns posts de demonstração.
+const SEED_COMMENTS = {
+  "post-confidants-sem-spoiler": [
+    ["user-lunaforge", "Salvei! Eu sempre me perdia nos dias de chuva."],
+    ["user-cloudsave", "Deixar algumas noites livres no começo ajuda demais."]
+  ],
+  "post-chefe-elden-ring": [
+    ["user-knightshade", "Malenia, sem dúvida. Precisei mudar até de arma."],
+    ["user-redherb", "O Godrick me segurou um bom tempo na primeira vez."],
+    ["user-veemaster", "Radahn foi um teste de paciência, mas valeu a pena!"]
+  ],
+  "post-ng-plus-persona": [
+    ["user-lunaforge", "Vale muito! Dá para focar nos vínculos que ficaram para trás."]
+  ],
+  "post-ff7-momento": [
+    ["user-cloudsave", "A parte do Wall Market mudou tudo para mim 😂"]
+  ],
+  "post-witcher-escolhas": [
+    ["user-tarnished", "Escolhas sem resposta certa são o melhor desse jogo."]
+  ],
+  "post-re4-mala": [
+    ["user-veemaster", "Organizar a maleta é meu minigame favorito."],
+    ["user-knightshade", "Passo mais tempo na maleta do que atirando 😅"]
+  ],
+  "post-hollow-banco": [
+    ["user-tarnished", "Os bancos salvaram minha vida em Deepnest."]
+  ],
+  "post-arte-hollow-knight": [
+    ["user-lunaforge", "Que traço lindo! As cores lembram muito Hallownest."]
+  ],
+  "post-review-re4-redherb": [
+    ["user-veemaster", "Concordo com tudo, principalmente sobre o ritmo."]
+  ]
+};
+
+const REACTION_KEYS = ["fire", "laugh", "wow"];
+
+/**
+ * Interações de demonstração coerentes com 6 usuários: cada pessoa curte alguns posts,
+ * salva poucos, reage a alguns e vota nas enquetes. Ninguém curte o próprio post.
+ */
+export function createSeedInteractions(posts, users, now = new Date()) {
+  const seedUsers = users.filter((user) => String(user.id).startsWith("user-"));
   const likes = [];
-  const comments = [];
   const savedPosts = [];
+  const reactions = [];
+  const pollVotes = [];
+  const comments = [];
 
-  posts.forEach((post) => {
-    const postPart = post.id.replace(/[^a-z0-9_-]/gi, "-");
+  posts.filter((post) => post.status === "published").forEach((post) => {
+    seedUsers.forEach((user) => {
+      if (user.id === post.authorId) return;
+      const roll = stableHash(`${post.id}:${user.id}`) % 100;
+      if (roll < 55) {
+        likes.push({ id: `seed-like-${post.id}-${user.id}`, postId: post.id, userId: user.id, createdAt: afterPost(post, 5 + roll, now), origin: "seed-demo" });
+      }
+      if (roll % 5 === 0) {
+        savedPosts.push({ id: `seed-save-${post.id}-${user.id}`, postId: post.id, userId: user.id, createdAt: afterPost(post, 8 + roll, now), origin: "seed-demo" });
+      }
+      if (roll % 4 === 1) {
+        const emoji = REACTION_KEYS[stableHash(`${user.id}:${post.id}`) % REACTION_KEYS.length];
+        reactions.push({ id: `seed-reaction-${post.id}-${user.id}`, postId: post.id, userId: user.id, emoji, createdAt: afterPost(post, 3 + roll, now), origin: "seed-demo" });
+      }
+      if (post.poll?.options?.length && user.id !== "user-veemaster") {
+        const optionIndex = stableHash(`vote:${post.id}:${user.id}`) % post.poll.options.length;
+        pollVotes.push({ id: `seed-vote-${post.id}-${user.id}`, postId: post.id, userId: user.id, optionIndex, createdAt: afterPost(post, 10 + roll, now), origin: "seed-demo" });
+      }
+    });
 
-    for (let index = 0; index < post.likesCount; index += 1) {
-      likes.push({
-        id: `legacy-like-${postPart}-${index}`,
-        postId: post.id,
-        userId: `legacy-like-user-${postPart}-${index}`,
-        createdAt: post.createdAt,
-        origin: "seed-summary"
-      });
-    }
-
-    for (let index = 0; index < post.commentsCount; index += 1) {
+    (SEED_COMMENTS[post.id] || []).forEach(([authorId, content], index) => {
+      if (!seedUsers.some((user) => user.id === authorId)) return;
+      const createdAt = afterPost(post, 15 + index * 37, now);
       comments.push({
-        id: `legacy-comment-${postPart}-${index}`,
+        id: `seed-comment-${post.id}-${index}`,
         postId: post.id,
-        authorId: `legacy-comment-user-${postPart}-${index}`,
+        authorId,
         parentCommentId: null,
-        content: "Comentário demonstrativo preservado da fase inicial.",
+        content,
         spoiler: false,
         status: "published",
-        createdAt: post.createdAt,
-        updatedAt: post.createdAt,
-        origin: "seed-summary"
+        createdAt,
+        updatedAt: createdAt,
+        origin: "seed-demo"
       });
-    }
-
-    for (let index = 0; index < post.savesCount; index += 1) {
-      savedPosts.push({
-        id: `legacy-save-${postPart}-${index}`,
-        postId: post.id,
-        userId: `legacy-save-user-${postPart}-${index}`,
-        createdAt: post.createdAt,
-        origin: "seed-summary"
-      });
-    }
+    });
   });
 
-  return { likes, comments, savedPosts };
+  const follows = [
+    // Quem segue a VeeMaster (o usuário de demonstração começa sem seguir ninguém).
+    ["user-lunaforge", "user-veemaster"], ["user-redherb", "user-veemaster"], ["user-cloudsave", "user-veemaster"],
+    ["user-knightshade", "user-tarnished"], ["user-tarnished", "user-knightshade"], ["user-cloudsave", "user-lunaforge"]
+  ]
+    .filter(([followerId, followingId]) => seedUsers.some((u) => u.id === followerId) && seedUsers.some((u) => u.id === followingId))
+    .map(([followerId, followingId], index) => ({
+      id: `seed-follow-${followerId}-${followingId}`,
+      followerId,
+      followingId,
+      createdAt: new Date(now.getTime() - (20 - index) * DAY).toISOString(),
+      origin: "seed-demo"
+    }));
+
+  return { likes, savedPosts, reactions, pollVotes, comments, follows };
+}
+
+// Conteúdo novo da versão 3: uma análise de exemplo e uma enquete.
+export function createSeedExtras(now = new Date()) {
+  const createdAt = new Date(now.getTime() - 6 * 60 * MINUTE).toISOString();
+  return {
+    posts: [{
+      id: "post-review-re4-redherb",
+      authorId: "user-redherb",
+      gameId: 795632,
+      gameName: "Resident Evil 4",
+      gameSlug: "resident-evil-4-2023",
+      type: "review",
+      rating: 5,
+      title: "Análise: Resident Evil 4",
+      content: "O remake respeita o original e moderniza tudo o que envelheceu. A tensão é constante, o combate tem peso e a maleta continua sendo um prazer de organizar. Ritmo excelente do começo ao fim.",
+      tags: ["resident-evil", "analise", "terror"],
+      media: [],
+      spoiler: false,
+      spoilerLabel: "",
+      poll: null,
+      status: "published",
+      visibility: "public",
+      createdAt,
+      updatedAt: createdAt
+    }],
+    polls: {
+      "post-chefe-elden-ring": { options: ["Malenia", "Radahn", "Godrick", "Outro"] }
+    }
+  };
 }
 
 export function createCommunitySeed(now = new Date()) {
@@ -127,10 +229,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Como organizar os Confidants sem spoilers",
       content: "Priorize os vínculos que liberam ferramentas para o cotidiano e deixe dias livres para imprevistos. Uma agenda flexível costuma ser melhor que tentar otimizar tudo logo de início.",
       tags: ["persona5", "guia", "sem-spoilers"],
-      age: 20 * MINUTE,
-      likesCount: 143,
-      commentsCount: 24,
-      savesCount: 81
+      age: 20 * MINUTE
     }),
     post({
       id: "post-arte-vee-aventura",
@@ -150,10 +249,7 @@ export function createCommunitySeed(now = new Date()) {
         height: 1024
       }],
       tags: ["vee", "arte", "gameverse"],
-      age: 48 * MINUTE,
-      likesCount: 119,
-      commentsCount: 18,
-      savesCount: 42
+      age: 48 * MINUTE
     }),
     post({
       id: "post-chefe-elden-ring",
@@ -165,10 +261,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Qual foi o chefe mais difícil na primeira jornada?",
       content: "Quero comparar experiências sem transformar isso em disputa de build. Qual encontro realmente fez você mudar a estratégia?",
       tags: ["elden-ring", "chefes", "pergunta"],
-      age: 2 * 60 * MINUTE,
-      likesCount: 88,
-      commentsCount: 63,
-      savesCount: 9
+      age: 2 * 60 * MINUTE
     }),
     post({
       id: "post-metaphor-cena",
@@ -182,10 +275,7 @@ export function createCommunitySeed(now = new Date()) {
       tags: ["metaphor", "direcao-de-arte", "screenshot"],
       spoiler: true,
       spoilerLabel: "Cena da segunda metade do jogo",
-      age: 4 * 60 * MINUTE,
-      likesCount: 174,
-      commentsCount: 31,
-      savesCount: 56
+      age: 4 * 60 * MINUTE
     }),
     post({
       id: "post-turnos-persona",
@@ -197,10 +287,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Combate por turnos ainda pode surpreender muita gente",
       content: "O ritmo das decisões e a apresentação fazem cada batalha parecer mais rápida do que a descrição do gênero sugere. Foi o jogo que mudou minha relação com turnos.",
       tags: ["persona5", "jrpg", "discussao"],
-      age: 8 * 60 * MINUTE,
-      likesCount: 97,
-      commentsCount: 27,
-      savesCount: 18
+      age: 8 * 60 * MINUTE
     }),
     post({
       id: "post-elden-inicio",
@@ -212,10 +299,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Cinco dicas para começar sem perder a descoberta",
       content: "Explore em círculos pequenos, marque lugares interessantes e teste armas antes de investir todos os recursos. Recuar de um encontro também faz parte da aventura.",
       tags: ["elden-ring", "iniciantes", "guia"],
-      age: DAY + 2 * 60 * MINUTE,
-      likesCount: 212,
-      commentsCount: 35,
-      savesCount: 128
+      age: DAY + 2 * 60 * MINUTE
     }),
     post({
       id: "post-arte-hollow-knight",
@@ -227,10 +311,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Minha arte inspirada no silêncio de Hallownest",
       content: "Tentei trabalhar apenas com formas simples e contraste. A imagem ainda está em processo, então deixei aqui um pequeno relato da ideia.",
       tags: ["hollow-knight", "fanart", "processo"],
-      age: DAY + 7 * 60 * MINUTE,
-      likesCount: 156,
-      commentsCount: 22,
-      savesCount: 67
+      age: DAY + 7 * 60 * MINUTE
     }),
     post({
       id: "post-ng-plus-persona",
@@ -242,10 +323,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Vale fazer NG+ em Persona 5 Royal?",
       content: "Terminei com alguns vínculos incompletos e fiquei curioso para experimentar escolhas diferentes. O que mais vale observar numa segunda jornada?",
       tags: ["persona5", "ng-plus", "pergunta"],
-      age: 2 * DAY,
-      likesCount: 73,
-      commentsCount: 46,
-      savesCount: 21
+      age: 2 * DAY
     }),
     post({
       id: "post-hollow-banco",
@@ -257,10 +335,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Um momento de calma entre duas áreas difíceis",
       content: "Os bancos sempre parecem um pequeno respiro. Não anexei imagem porque ainda estou escolhendo uma captura que não entregue nenhuma surpresa.",
       tags: ["hollow-knight", "atmosfera", "screenshot"],
-      age: 2 * DAY + 5 * 60 * MINUTE,
-      likesCount: 64,
-      commentsCount: 12,
-      savesCount: 14
+      age: 2 * DAY + 5 * 60 * MINUTE
     }),
     post({
       id: "post-re4-mala",
@@ -274,10 +349,7 @@ export function createCommunitySeed(now = new Date()) {
       tags: ["resident-evil", "inventario", "discussao"],
       spoiler: true,
       spoilerLabel: "Discussão sobre equipamentos avançados",
-      age: 3 * DAY,
-      likesCount: 91,
-      commentsCount: 38,
-      savesCount: 16
+      age: 3 * DAY
     }),
     post({
       id: "post-persona3-social",
@@ -289,10 +361,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Uma rotina simples para não abandonar os vínculos",
       content: "Separe objetivos por período do dia e não trate cada semana como uma lista perfeita. O guia é sobre consistência, não sobre uma agenda fechada.",
       tags: ["persona3", "social-links", "guia"],
-      age: 3 * DAY + 8 * 60 * MINUTE,
-      likesCount: 134,
-      commentsCount: 19,
-      savesCount: 76
+      age: 3 * DAY + 8 * 60 * MINUTE
     }),
     post({
       id: "post-ff7-momento",
@@ -306,10 +375,7 @@ export function createCommunitySeed(now = new Date()) {
       tags: ["final-fantasy", "personagens", "pergunta"],
       spoiler: true,
       spoilerLabel: "Discussão sobre momentos da história",
-      age: 4 * DAY,
-      likesCount: 102,
-      commentsCount: 54,
-      savesCount: 24
+      age: 4 * DAY
     }),
     post({
       id: "post-witcher-escolhas",
@@ -321,10 +387,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "As melhores escolhas são as que continuam desconfortáveis",
       content: "Algumas missões não entregam uma resposta claramente correta, e é justamente isso que me faz lembrar delas anos depois.",
       tags: ["the-witcher", "narrativa", "escolhas"],
-      age: 5 * DAY,
-      likesCount: 128,
-      commentsCount: 41,
-      savesCount: 33
+      age: 5 * DAY
     }),
     post({
       id: "post-metaphor-arquetipos",
@@ -336,10 +399,7 @@ export function createCommunitySeed(now = new Date()) {
       title: "Como experimentar Arquétipos sem travar a equipe",
       content: "Mantenha ao menos uma função confortável enquanto testa a nova combinação. Assim você aprende o sistema sem transformar cada encontro em um bloqueio.",
       tags: ["metaphor", "arquetipos", "guia"],
-      age: 6 * DAY,
-      likesCount: 116,
-      commentsCount: 17,
-      savesCount: 69
+      age: 6 * DAY
     }),
     post({
       id: "post-re4-luz",
@@ -351,23 +411,26 @@ export function createCommunitySeed(now = new Date()) {
       title: "A iluminação conta a história antes do combate",
       content: "Uma boa captura desse jogo quase sempre revela como a luz prepara a tensão. Preferi publicar a observação sem usar uma imagem genérica.",
       tags: ["resident-evil", "fotografia", "screenshot"],
-      age: 7 * DAY,
-      likesCount: 82,
-      commentsCount: 14,
-      savesCount: 29
+      age: 7 * DAY
     })
   ];
 
-  const interactions = materializeSeedInteractions(posts);
+  const extras = createSeedExtras(now);
+  const allPosts = [...posts, ...extras.posts].map((item) => (
+    extras.polls[item.id] ? { ...item, poll: extras.polls[item.id] } : item
+  ));
+  const interactions = createSeedInteractions(allPosts, users, now);
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     users,
-    posts,
+    posts: allPosts,
     comments: interactions.comments,
     likes: interactions.likes,
     savedPosts: interactions.savedPosts,
-    follows: [],
-    reports: []
+    follows: interactions.follows,
+    reports: [],
+    reactions: interactions.reactions,
+    pollVotes: interactions.pollVotes
   };
 }

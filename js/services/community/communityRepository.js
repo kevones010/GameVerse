@@ -24,4 +24,9 @@ export class CommunityRepository {
   async toggleFollow() { throw NOT_IMPLEMENTED("toggleFollow"); }
   async listReportsByUser() { throw NOT_IMPLEMENTED("listReportsByUser"); }
   async createReport() { throw NOT_IMPLEMENTED("createReport"); }
+  async listCommentsByUser() { throw NOT_IMPLEMENTED("listCommentsByUser"); }
+  async listReactionsByUser() { throw NOT_IMPLEMENTED("listReactionsByUser"); }
+  async listPollVotesByUser() { throw NOT_IMPLEMENTED("listPollVotesByUser"); }
+  async toggleReaction() { throw NOT_IMPLEMENTED("toggleReaction"); }
+  async votePoll() { throw NOT_IMPLEMENTED("votePoll"); }
 }

@@ -48,7 +48,18 @@ export function mapCommunityPost(post, author, interactionState = {}) {
     commentsCount: Math.max(0, Number(post.commentsCount) || 0),
     savesCount: Math.max(0, Number(post.savesCount) || 0),
     likedByCurrentUser: Boolean(interactionState.liked),
-    savedByCurrentUser: Boolean(interactionState.saved)
+    savedByCurrentUser: Boolean(interactionState.saved),
+    rating: Number.isInteger(post.rating) ? post.rating : null,
+    reactions: ["fire", "laugh", "wow"].map((emoji) => ({
+      emoji,
+      count: Math.max(0, Number(post.reactionCounts?.[emoji]) || 0),
+      mine: Boolean(interactionState.reactions?.has(emoji))
+    })),
+    poll: post.poll?.options?.length ? {
+      options: post.poll.options.map((label, index) => ({ label, votes: Math.max(0, Number(post.pollCounts?.[index]) || 0) })),
+      total: (post.pollCounts || []).reduce((sum, value) => sum + (Number(value) || 0), 0),
+      myVote: Number.isInteger(interactionState.pollVote) ? interactionState.pollVote : null
+    } : null
   };
 }
 

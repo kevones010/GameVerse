@@ -5,6 +5,7 @@ export const DESCRIPTION_BY_SLUG = {
   'persona-4-golden': 'Persona 4 Golden acompanha um grupo de amigos que investiga mistérios sobrenaturais em Inaba, com forte personalidade, amizade e uma trilha sonora inesquecível.',
   'final-fantasy-vii-remake': 'Final Fantasy VII Remake reimagina a clássica aventura de Cloud com combate dinâmico, narrativa intensa e uma produção visual impressionante.',
   'resident-evil-4-remake': 'Resident Evil 4 Remake leva a clássica experiência de survival horror para um novo patamar com tensão, ação e direção de câmera marcante.',
+  'resident-evil-4-2023': 'Resident Evil 4 Remake leva a clássica experiência de survival horror para um novo patamar com tensão, ação e direção de câmera marcante.',
   'super-mario-odyssey': 'Super Mario Odyssey oferece uma viagem colorida e criativa pelo mundo com plataformas brilhantes, exploração e o icônico Capybara.',
   'hollow-knight-silksong': 'Hollow Knight: Silksong promete expandir o universo da franquia com um combate refinado, atmosfera intensa e um visual único.',
   'persona-3-reload': 'Persona 3 Reload traz um drama sobrenatural com personagens carismáticos e uma jornada emocional que se destaca entre os JRPGs modernos.',
