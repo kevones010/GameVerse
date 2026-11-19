@@ -15,7 +15,8 @@ export function escapeHtml(value) {
 
 export function formatDate(value) {
   if (!value) return "Em breve";
-  const date = new Date(value);
+  // "2017-02-24" sozinho vira meia-noite UTC, que no Brasil ainda é o dia anterior.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? new Date(`${value}T12:00:00`) : new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(date);
 }

@@ -151,7 +151,8 @@ async function loadGamePage() {
     const cachedGame = getCachedValue(`game:${identifier}`);
     const game = cachedGame || await getGame(identifier);
 
-    if (!cachedGame) {
+    // Dados do modo apresentação não entram no cache, para a RAWG real voltar a valer assim que responder.
+    if (!cachedGame && !game.__offline) {
       setCache(`game:${identifier}`, game);
     }
 
@@ -195,7 +196,7 @@ async function loadGamePage() {
     renderTrailer(trailers, game, youtubeTrailer);
     renderScreenshots(screenshots);
     renderInfo(game);
-    renderPrices(stores.length ? stores : []);
+    renderPrices(stores, game);
     renderRating(game.id, game);
     renderAnalysis(game.id);
     renderSimilar(similar.filter((item) => item.id !== game.id && item.slug !== game.slug).slice(0, 8));

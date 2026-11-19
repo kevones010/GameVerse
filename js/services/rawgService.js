@@ -1,5 +1,6 @@
 import { CONFIG } from "../config.js";
 import { getLocalConfig } from "./localConfig.js";
+import { offlineResponse, isOfflineForced } from "./offlineSnapshot.js";
 
 const LIST_CACHE_TTL = 20 * 60 * 1000;
 const LIST_CACHE_PREFIX = "gameverse-list-v2:";
@@ -16,7 +17,26 @@ function withSafeGameImage(game) {
   };
 }
 
+// Tenta a RAWG; se ela falhar (fora do ar, sem internet, sem chave), usa a cópia do modo apresentação.
+// Um 404 de verdade continua sendo erro: não queremos "inventar" um jogo que não existe.
 async function requestRawg(endpoint, params = {}) {
+  if (isOfflineForced()) {
+    const offline = await offlineResponse(endpoint, params);
+    if (offline) return { ...offline, __offline: true };
+    throw new Error("Sem dados salvos para esta consulta no modo apresentação.");
+  }
+
+  try {
+    return await requestRawgOnline(endpoint, params);
+  } catch (error) {
+    if (error.status === 404) throw error;
+    const offline = await offlineResponse(endpoint, params);
+    if (offline) return { ...offline, __offline: true };
+    throw error;
+  }
+}
+
+async function requestRawgOnline(endpoint, params = {}) {
   const { RAWG_API_KEY } = await getLocalConfig();
   if (!RAWG_API_KEY) {
     throw new Error("RAWG API key não configurada.");
@@ -74,6 +94,7 @@ export async function getGamesList(params = {}) {
     const results = (data.results || [])
       .filter((game) => game && game.id && game.name)
       .map(withSafeGameImage);
+    if (data.__offline) return results;
     try {
       sessionStorage.setItem(cacheKey, JSON.stringify({ expiresAt: Date.now() + LIST_CACHE_TTL, results }));
     } catch (error) {
@@ -84,6 +105,33 @@ export async function getGamesList(params = {}) {
     console.warn("Lista de jogos indisponível.", error);
     return [];
   }
+}
+
+// Igual a getGamesList, mas devolve também o total (count) para paginação e contador.
+// Diferente de getGamesList, aqui a falha é propagada para a tela mostrar "tentar novamente".
+const PAGE_CACHE_PREFIX = "gameverse-page-v1:";
+
+export async function getGamesPage(params = {}) {
+  const cacheKey = `${PAGE_CACHE_PREFIX}${JSON.stringify(params)}`;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+    if (cached && cached.expiresAt > Date.now()) return cached.page;
+  } catch (error) {
+    console.warn("Cache de páginas indisponível.", error);
+  }
+
+  const data = await requestRawg("/games", params);
+  const page = {
+    count: Number.isFinite(data.count) ? data.count : 0,
+    results: (data.results || []).filter((game) => game && game.id && game.name).map(withSafeGameImage)
+  };
+  if (data.__offline) return page;
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ expiresAt: Date.now() + LIST_CACHE_TTL, page }));
+  } catch (error) {
+    console.warn("Não foi possível salvar o cache da página.", error);
+  }
+  return page;
 }
 
 export async function getScreenshots(gameId) {

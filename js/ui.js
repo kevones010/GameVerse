@@ -2,6 +2,7 @@ import { escapeHtml, formatDate, observeLazyImages } from "./utils.js";
 import { DESCRIPTION_BY_SLUG } from "../data/descriptions-pt.js";
 import { navigateWithVee } from "./motion.js";
 import { readFavorites, readRating, readAnalysis, writePersonalData, removePersonalData } from "./services/gameStorage.js";
+import { GAME_STATUSES, getGameStatus, setGameStatus, gameSnapshot, readCollection } from "./services/collectionStorage.js";
 
 function storageNotice(container, message) {
   let notice = container.querySelector("[data-storage-notice]");
@@ -68,7 +69,7 @@ export function renderHeader(game) {
         <a href="index.html" class="nav-btn">Home</a>
         <a href="categorias.html" class="nav-btn">Categorias</a>
         <a href="comunidade.html" class="nav-btn">Comunidade</a>
-        <a href="favoritos.html" class="nav-btn">Favoritos</a>
+        <a href="favoritos.html" class="nav-btn">Coleção</a>
         <div class="profile-pill">
           <span class="profile-avatar"><img src="assets/brand/vee-avatar-happy.webp" alt="Avatar Vee" /></span>
           <span>Guest</span>
@@ -117,23 +118,67 @@ export function renderHero(game) {
 
   const favoriteButton = document.getElementById("favoriteButton");
   favoriteButton.textContent = isFavorite ? "★ Favoritado" : "★ Favoritar";
+  favoriteButton.setAttribute("aria-pressed", String(isFavorite));
   favoriteButton.disabled = !available;
   if (!available) favoriteButton.textContent = "Favoritos indisponíveis";
   favoriteButton.onclick = () => {
     const { value: favorites, available } = readFavorites();
     if (!available) { renderHero(game); return; }
     const exists = favorites.some((item) => item.id === game.id);
-    const next = exists ? favorites.filter((item) => item.id !== game.id) : [...favorites, { id: game.id, slug: game.slug }];
+    // O favorito guarda nome e imagem para a página "Minha coleção" abrir sem esperar a RAWG.
+    const next = exists ? favorites.filter((item) => item.id !== game.id) : [...favorites, gameSnapshot(game)];
     if (!writePersonalData("gameverse-favorites", JSON.stringify(next))) {
       favoriteButton.textContent = "Não foi possível salvar favorito";
       return;
     }
     renderHero(game);
   };
-  document.getElementById("shareButton").onclick = async () => {
-    await navigator.clipboard?.writeText(window.location.href);
+  const shareButton = document.getElementById("shareButton");
+  shareButton.onclick = async () => {
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      copied = true;
+    } catch { /* área de transferência indisponível (ex.: página sem foco) */ }
+    shareButton.textContent = copied ? "✓ Link copiado" : "Copie o endereço da página";
+    setTimeout(() => { shareButton.textContent = "↗ Compartilhar"; }, 2200);
   };
+  const compareLink = document.getElementById("compareLink");
+  if (compareLink) compareLink.href = `comparar.html?a=${encodeURIComponent(game.slug || game.id)}`;
+  renderStatusPicker(game);
   document.getElementById("trailerButton").onclick = () => document.getElementById("trailer").scrollIntoView({ behavior: "smooth" });
+}
+
+export function renderStatusPicker(game) {
+  const container = document.getElementById("gameStatus");
+  if (!container) return;
+  const { available } = readCollection();
+  const current = getGameStatus(game.id);
+
+  container.innerHTML = `
+    <span class="status-label" id="gameStatusLabel">Na sua coleção:</span>
+    ${GAME_STATUSES.map((status) => `
+      <button type="button" class="status-btn status-btn--${status.id} ${current === status.id ? "is-active" : ""}"
+        data-status="${status.id}" aria-pressed="${current === status.id}" ${available ? "" : "disabled"}>
+        <span aria-hidden="true">${status.icon}</span> ${status.label}
+      </button>`).join("")}
+    <span class="status-feedback" role="status" aria-live="polite"></span>
+  `;
+
+  container.querySelectorAll(".status-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const result = setGameStatus(game, button.dataset.status);
+      renderStatusPicker(game);
+      const feedback = container.querySelector(".status-feedback");
+      if (!result.ok) {
+        feedback.textContent = "Não foi possível salvar agora.";
+        return;
+      }
+      const info = GAME_STATUSES.find((status) => status.id === result.status);
+      feedback.textContent = info ? `Marcado como “${info.label}”.` : "Removido da coleção.";
+      container.querySelector(`[data-status="${button.dataset.status}"]`)?.focus();
+    });
+  });
 }
 
 export function renderSynopsis(game) {
@@ -222,19 +267,34 @@ export function renderInfo(game) {
   `;
 }
 
-export function renderPrices(stores) {
+export function renderPrices(stores, game = {}) {
   const prices = document.getElementById("game-prices");
-  prices.innerHTML = `
-      ${stores.length ? stores.map((store) => `
-        <div class="price-card">
+  // O endpoint /stores traz só store_id + url; o nome da loja vem em game.stores.
+  const urlByStoreId = new Map(stores.map((item) => [item.store_id, item.url]));
+  const items = (game.stores || [])
+    .filter((item) => item?.store?.name)
+    .map((item) => ({ name: item.store.name, url: safeExternalUrl(urlByStoreId.get(item.store.id)) }));
+
+  prices.innerHTML = items.length ? items.map((item) => {
+    const content = `
           <div>
-            <strong>${escapeHtml(store.store?.name || store.name || "Loja")}</strong>
+            <strong>${escapeHtml(item.name)}</strong>
             <span>Disponível para compra</span>
           </div>
-          <span class="price-pill">Ver loja</span>
-        </div>
-      `).join("") : '<div class="empty-state">Preço indisponível</div>'}
-  `;
+          <span class="price-pill">${item.url ? "Ver loja" : "Sem link"}</span>`;
+    return item.url
+      ? `<a class="price-card" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${content}</a>`
+      : `<div class="price-card">${content}</div>`;
+  }).join("") : '<div class="empty-state">Nenhuma loja informada para este jogo.</div>';
+}
+
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+  } catch {
+    return "";
+  }
 }
 
 export function renderRating(gameId, game = {}) {
@@ -313,7 +373,7 @@ export function renderAnalysis(gameId, editing = false) {
       <textarea class="analysis-textarea" id="analysisText" placeholder="Escreva sua análise...">${escapeHtml(savedReview.text || "")}</textarea>
       <div class="analysis-actions">
         <button type="submit" class="btn btn-primary">Salvar análise</button>
-        <button type="button" class="btn btn-secondary" id="deleteAnalysis">Excluir</button>
+        ${editing ? '<button type="button" class="btn btn-secondary" id="cancelAnalysis">Cancelar</button>' : ""}
       </div>
     </form>`;
 
@@ -335,7 +395,7 @@ export function renderAnalysis(gameId, editing = false) {
     renderAnalysis(gameId);
   });
 
-  document.getElementById("deleteAnalysis").addEventListener("click", deleteReview);
+  document.getElementById("cancelAnalysis")?.addEventListener("click", () => renderAnalysis(gameId));
 }
 
 export function renderSimilar(games) {

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GameVerse | Modo apresentação</title>
+    <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
+    <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/header-search.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <script src="js/a11y-boot.js"></script>
+    <script>
+      // O Live Server recarrega a página quando um arquivo da pasta muda. Como esta página
+      // grava arquivos na pasta, a recarga interromperia a geração no meio. Aqui (e só aqui)
+      // desligamos a conexão de recarga automática do Live Server.
+      window.WebSocket = function NoLiveReload() {
+        return { addEventListener() {}, close() {}, send() {} };
+      };
+    </script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <nav class="navbar">
+          <a href="index.html" class="brand">
+            <span class="brand-mark"><img src="assets/brand/vee-logo-head.png" alt="Vee, mascote do GameVerse" /></span>
+            <span>GameVerse</span>
+          </a>
+          <div class="nav-actions">
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="comunidade.html" class="nav-btn">Comunidade</a>
+            <a href="favoritos.html" class="nav-btn">Coleção</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="home-page">
+        <section class="section-block presentation-section" aria-labelledby="presentationTitle">
+          <div class="section-heading">
+            <div>
+              <h1 id="presentationTitle">📦 Modo apresentação</h1>
+              <p>Guarda uma cópia dos jogos para o site funcionar mesmo se a RAWG cair no dia da feira.</p>
+            </div>
+          </div>
+
+          <div class="presentation-status" id="snapshotStatus" role="status">Verificando se já existe uma cópia…</div>
+
+          <ol class="presentation-steps">
+            <li>Clique em <strong>Gerar cópia</strong> (precisa de internet).</li>
+            <li>Na janela que abrir, escolha a pasta <strong>GameVerse</strong> e permita salvar.</li>
+            <li>Espere aparecer “Pronto!”. Leva uns 2 minutos.</li>
+          </ol>
+
+          <div class="presentation-actions">
+            <button type="button" class="surprise-btn" id="generateButton">Gerar cópia</button>
+            <button type="button" class="compare-btn" id="forceButton"></button>
+          </div>
+
+          <pre class="presentation-log" id="presentationLog" role="log" aria-live="polite" hidden></pre>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="js/modoApresentacao.js"></script>
+    <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/headerSearch.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
+  </body>
+</html>

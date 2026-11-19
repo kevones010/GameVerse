@@ -6,6 +6,8 @@
     <title>GameVerse | Home</title>
     <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
     <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <script src="js/a11y-boot.js"></script>
   </head>
   <body>
     <div class="page-shell">
@@ -23,7 +25,7 @@
             <a href="index.html" class="nav-btn active">Home</a>
             <a href="categorias.html" class="nav-btn">Categorias</a>
             <a href="comunidade.html" class="nav-btn">Comunidade</a>
-            <a href="favoritos.html" class="nav-btn">Favoritos</a>
+            <a href="favoritos.html" class="nav-btn">Coleção</a>
           </div>
         </nav>
         <div class="search-suggestions" id="searchSuggestions"></div>
@@ -31,7 +33,10 @@
 
       <main class="home-page">
         <section class="hero-card" id="hero"></section>
+        <section class="section-block" id="collectionRow" hidden></section>
+        <section class="section-block" id="shortcuts" aria-label="Explore por estilo"></section>
         <section class="section-block" id="launches"></section>
+        <section class="section-block" id="upcoming"></section>
         <section class="section-block" id="trending"></section>
         <section class="section-block" id="topRated"></section>
         <section class="section-block" id="developerFavorites"></section>
@@ -44,5 +49,7 @@
 
     <script type="module" src="js/home.js"></script>
     <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/headerSearch.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
   </body>
 </html>

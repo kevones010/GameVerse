@@ -511,6 +511,11 @@ img {
   transition: transform 0.25s ease, border-color 0.25s ease;
 }
 
+a.price-card {
+  color: inherit;
+  text-decoration: none;
+}
+
 .price-card:hover {
   transform: translateY(-2px);
   border-color: rgba(193, 18, 31, 0.4);
@@ -840,3 +845,47 @@ img {
   background: linear-gradient(180deg, rgba(193, 18, 31, 0.6), rgba(255, 77, 95, 0.45));
   border-radius: 999px;
 }
+
+/* ===== Status do jogo na coleção ===== */
+.status-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.status-label {
+  margin-right: 0.2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 38px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.status-btn:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(255, 255, 255, 0.35); }
+.status-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.status-btn.is-active { border-color: transparent; font-weight: 700; }
+.status-btn--want.is-active { background: #2f5bd8; }
+.status-btn--playing.is-active { background: #7c4dff; }
+.status-btn--completed.is-active { background: #1f9d55; }
+.status-btn--dropped.is-active { background: #6b7280; }
+.status-feedback { flex-basis: 100%; min-height: 1.1em; color: var(--muted); font-size: 0.82rem; }
+
+/* Links da caixa de informações (o "Abrir" do site oficial ficava azul-escuro, quase invisível). */
+#game-info a { color: #ff8fa3; font-weight: 700; }
+#game-info a:hover { color: #ffd1da; }

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GameVerse | Comparar jogos</title>
+    <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
+    <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/header-search.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <script src="js/a11y-boot.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <nav class="navbar">
+          <a href="index.html" class="brand">
+            <span class="brand-mark"><img src="assets/brand/vee-logo-head.png" alt="Vee, mascote do GameVerse" /></span>
+            <span>GameVerse</span>
+          </a>
+          <div class="nav-actions">
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="comunidade.html" class="nav-btn">Comunidade</a>
+            <a href="favoritos.html" class="nav-btn">Coleção</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="home-page">
+        <section class="section-block compare-section" aria-labelledby="compareTitle">
+          <div class="section-heading">
+            <div>
+              <h1 id="compareTitle">⚖️ Comparar jogos</h1>
+              <p>Escolha dois jogos e veja nota, tempo de jogo, gêneros e plataformas lado a lado</p>
+            </div>
+          </div>
+
+          <div class="compare-pickers">
+            <div class="compare-slot" data-side="a">
+              <label class="compare-label" for="compareInput-a">Primeiro jogo</label>
+              <div class="compare-search">
+                <input id="compareInput-a" type="search" placeholder="Digite o nome de um jogo…" autocomplete="off"
+                  aria-controls="compareSuggestions-a" aria-expanded="false" />
+                <div class="compare-suggestions" id="compareSuggestions-a" hidden></div>
+              </div>
+              <div class="compare-picked"></div>
+            </div>
+            <div class="compare-vs" aria-hidden="true">VS</div>
+            <div class="compare-slot" data-side="b">
+              <label class="compare-label" for="compareInput-b">Segundo jogo</label>
+              <div class="compare-search">
+                <input id="compareInput-b" type="search" placeholder="Digite o nome de um jogo…" autocomplete="off"
+                  aria-controls="compareSuggestions-b" aria-expanded="false" />
+                <div class="compare-suggestions" id="compareSuggestions-b" hidden></div>
+              </div>
+              <div class="compare-picked"></div>
+            </div>
+          </div>
+
+          <div id="compareTable" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="js/comparar.js"></script>
+    <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/headerSearch.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
+  </body>
+</html>

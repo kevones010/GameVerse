@@ -45,7 +45,10 @@ img {
   max-width: 100%;
 }
 
-button {
+button,
+input,
+select,
+textarea {
   font: inherit;
 }
 

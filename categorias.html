@@ -6,6 +6,8 @@
     <title>GameVerse | Categorias</title>
     <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
     <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <script src="js/a11y-boot.js"></script>
   </head>
   <body>
     <div class="page-shell">
@@ -23,37 +25,41 @@
             <a href="index.html" class="nav-btn">Home</a>
             <a href="categorias.html" class="nav-btn active">Categorias</a>
             <a href="comunidade.html" class="nav-btn">Comunidade</a>
-            <a href="favoritos.html" class="nav-btn">Favoritos</a>
+            <a href="favoritos.html" class="nav-btn">Coleção</a>
           </div>
         </nav>
         <div class="search-suggestions" id="searchSuggestions"></div>
       </header>
 
       <main class="home-page">
-        <section class="section-block">
-          <div class="section-heading">
+        <section class="section-block catalog-section" aria-labelledby="catalogTitle">
+          <div class="section-heading catalog-heading">
             <div>
-              <h2>Catálogo</h2>
-              <p>Explore jogos por gênero, plataforma e estilo</p>
+              <h1 id="catalogTitle" tabindex="-1">Catálogo</h1>
+              <p>Combine estilo, plataforma, época e nota para achar o próximo jogo</p>
             </div>
+            <form class="catalog-search" id="catalogSearch" role="search">
+              <label class="sr-only" for="catalogQuery">Buscar no catálogo</label>
+              <input id="catalogQuery" type="search" placeholder="Buscar no catálogo…" maxlength="80" autocomplete="off" />
+              <button type="submit" class="pagination-btn">Buscar</button>
+            </form>
           </div>
-          <div class="filter-row" id="filters"></div>
-          <label class="catalog-order">Ordenar por
-            <select id="ordering">
-              <option value="relevance">Relevância</option>
-              <option value="-added">Popularidade</option>
-              <option value="-rating">Mais bem avaliados</option>
-              <option value="-released">Mais recentes</option>
-              <option value="name">Nome</option>
-            </select>
-          </label>
+          <div class="catalog-filters" id="filters"></div>
+          <div class="catalog-toolbar">
+            <div class="catalog-summary" id="catalogSummary"></div>
+            <label class="catalog-order">Ordenar por
+              <select id="ordering"></select>
+            </label>
+          </div>
           <div class="catalog-grid" id="catalogResults"></div>
-          <div class="pagination" id="pagination"></div>
+          <nav class="pagination" id="pagination" aria-label="Páginas do catálogo"></nav>
         </section>
       </main>
     </div>
 
     <script type="module" src="js/categorias.js"></script>
     <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/headerSearch.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
   </body>
 </html>

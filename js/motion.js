@@ -23,6 +23,8 @@ let fallbackCleanupTimerId = 0;
 let overlayElement = null;
 
 function prefersReducedMotion() {
+  // Respeita o sistema e também a opção "Reduzir animações" do painel de acessibilidade.
+  if (window.GameVerseA11y) return window.GameVerseA11y.isReducedMotion();
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 

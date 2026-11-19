@@ -1,0 +1,61 @@
+/* Caixa de busca criada por js/headerSearch.js nas páginas que não tinham busca. */
+.gv-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: min(300px, 30vw);
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.gv-search input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  color: #f4f7ff;
+  background: transparent;
+  font: inherit;
+}
+.gv-search input::-webkit-search-cancel-button { filter: invert(1); }
+.gv-search-suggestions {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 1.5rem;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: min(420px, calc(100% - 3rem));
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(8, 10, 16, 0.97);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+.gv-search-suggestions.visible { display: flex; }
+.gv-search-suggestions .suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 0;
+  border-radius: 0.8rem;
+  color: #f4f7ff;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gv-search-suggestions .suggestion-item small { color: #a6b1c2; }
+.gv-search-suggestions .suggestion-item:hover,
+.gv-search-suggestions .suggestion-item:focus-visible { background: rgba(255, 255, 255, 0.08); }
+.gv-search-suggestions .suggestion-all { color: #ff8fa3; font-weight: 700; border-top: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0 0 0.8rem 0.8rem; }
+@media (max-width: 900px) {
+  .gv-search { flex: 1 1 100%; min-width: 100%; }
+}
+/* O contorno de foco fica na caixa inteira (ver accessibility.css), não duplicado no campo. */
+.gv-search input:focus-visible,
+.search-box input:focus-visible { outline: none; }

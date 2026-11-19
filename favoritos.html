@@ -3,9 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GameVerse | Favoritos</title>
+    <title>GameVerse | Minha coleção</title>
     <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
     <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/header-search.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <script src="js/a11y-boot.js"></script>
   </head>
   <body>
     <div class="page-shell">
@@ -19,24 +22,29 @@
             <a href="index.html" class="nav-btn">Home</a>
             <a href="categorias.html" class="nav-btn">Categorias</a>
             <a href="comunidade.html" class="nav-btn">Comunidade</a>
-            <a href="favoritos.html" class="nav-btn active">Favoritos</a>
+            <a href="favoritos.html" class="nav-btn active">Coleção</a>
           </div>
         </nav>
       </header>
       <main class="home-page">
-        <section class="section-block">
+        <section class="section-block collection-section" aria-labelledby="collectionTitle">
           <div class="section-heading">
             <div>
-              <h2>Favoritos</h2>
-              <p>Jogos salvos no seu navegador</p>
+              <h1 id="collectionTitle">Minha coleção</h1>
+              <p>Seus favoritos e o que você quer jogar, está jogando, zerou ou abandonou. Fica salvo neste navegador.</p>
             </div>
-            <span class="chip" id="favoritesCount">0</span>
+            <span class="chip" id="favoritesCount" aria-label="Total de jogos na coleção">0</span>
           </div>
-          <div class="cards-row" id="favoritesList"></div>
+          <div class="stat-grid" id="collectionStats"></div>
+          <div class="filter-row collection-tabs" id="collectionTabs" role="group" aria-label="Filtrar coleção"></div>
+          <p class="empty-state" id="collectionNotice" role="status"></p>
+          <div class="catalog-grid" id="favoritesList"></div>
         </section>
       </main>
     </div>
     <script type="module" src="js/favoritos.js"></script>
     <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/headerSearch.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
   </body>
 </html>

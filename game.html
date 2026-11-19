@@ -7,6 +7,8 @@
     <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
     <link rel="stylesheet" href="css/game.css" />
     <link rel="stylesheet" href="css/community-preview.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <script src="js/a11y-boot.js"></script>
   </head>
   <body>
     <div class="page-shell">
@@ -27,8 +29,10 @@
               <button id="favoriteButton" class="btn btn-primary favorite-btn" type="button">★ Favoritar</button>
               <button id="shareButton" class="btn btn-secondary" type="button">↗ Compartilhar</button>
               <button id="trailerButton" class="btn btn-secondary" type="button">▶ Trailer</button>
+              <a id="compareLink" class="btn btn-secondary" href="comparar.html">⚖ Comparar</a>
               <a id="gameCommunityLink" class="btn btn-secondary" hidden>Comunidade</a>
             </div>
+            <div class="status-picker" id="gameStatus" role="group" aria-labelledby="gameStatusLabel"></div>
           </div>
         </section>
 
@@ -59,5 +63,6 @@
 
     <script type="module" src="js/game.js"></script>
     <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
   </body>
 </html>

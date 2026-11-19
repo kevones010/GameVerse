@@ -13,7 +13,7 @@
 .profile-avatar-skeleton { background:linear-gradient(90deg, rgba(255,255,255,.05), rgba(255,255,255,.12), rgba(255,255,255,.05)); background-size:200% 100%; animation:community-shimmer 1.4s linear infinite; }
 .profile-copy { min-width:0; }
 .profile-copy h1 { margin:.15rem 0 .2rem; font-size:clamp(2rem,4vw,3.1rem); line-height:1; }
-.profile-handle { margin:0 0 .65rem; color:var(--accent-soft); font-weight:700; }
+.profile-handle { margin:0 0 .65rem; color:#ff8fa3; font-weight:700; }
 .profile-bio { max-width:720px; margin:.2rem 0 1rem; color:var(--muted); line-height:1.6; }
 .profile-stats { display:flex; flex-wrap:wrap; gap:1.2rem 2rem; margin:0 0 1rem; }
 .profile-stats div { display:flex; align-items:baseline; gap:.42rem; }
