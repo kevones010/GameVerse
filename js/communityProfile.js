@@ -1,3 +1,4 @@
+import { accountStore, loginUrl } from "./services/auth/accountStore.js";
 import { CommunityService } from "./services/community/communityService.js";
 import { LocalCommunityRepository } from "./services/community/localCommunityRepository.js";
 import { CommunitySession } from "./services/community/communitySession.js";
@@ -18,7 +19,7 @@ const TYPE_LABELS = POST_TYPE_PLURALS;
 const BASE_TABS = [["posts", "Publicações"], ...Object.entries(POST_TYPE_PLURALS)];
 
 const repository = new LocalCommunityRepository();
-const communityService = new CommunityService(repository, new CommunitySession(repository));
+const communityService = new CommunityService(repository, new CommunitySession(repository, accountStore()));
 const notify = createToastRegion();
 const confirmDelete = createConfirmDialog();
 const feed = document.getElementById("profileFeed");
@@ -47,6 +48,8 @@ function countLabel(count, singular, plural) {
 
 function renderTopbarUser(user) {
   const link = document.getElementById("communityUser");
+  if (!link || !user || user.isGuest) return; // o menu da conta mostra "Entrar"
+
   const image = document.createElement("img");
   image.src = safeAvatar(user.avatar);
   image.alt = "";
@@ -494,6 +497,11 @@ async function initialize() {
     currentUser = await communityService.getCurrentUser();
     renderTopbarUser(currentUser);
     targetUserId = new URLSearchParams(location.search).get("userId") || currentUser.id;
+    // "Meu perfil" sem estar logado: primeiro entra na conta.
+    if (currentUser.isGuest && targetUserId === currentUser.id) {
+      location.replace(loginUrl("perfil.html"));
+      return;
+    }
     profile = await communityService.getUserProfile(targetUserId);
     if (!profile) return renderInvalidProfile();
 

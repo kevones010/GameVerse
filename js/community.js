@@ -1,3 +1,4 @@
+import { accountStore } from "./services/auth/accountStore.js";
 import { CommunityService } from "./services/community/communityService.js";
 import { LocalCommunityRepository } from "./services/community/localCommunityRepository.js";
 import { CommunitySession } from "./services/community/communitySession.js";
@@ -9,7 +10,7 @@ import { createToastRegion } from "./community/ui/toast.js";
 import { createReportDialog } from "./community/ui/reportDialog.js";
 
 const repository = new LocalCommunityRepository();
-const session = new CommunitySession(repository);
+const session = new CommunitySession(repository, accountStore());
 const communityService = new CommunityService(repository, session);
 
 const feed = document.getElementById("communityFeed");
@@ -124,7 +125,8 @@ function renderFeedError(retry) {
 
 function renderCurrentUser(user) {
   const container = document.getElementById("communityUser");
-  if (!container || !user) return;
+  // Visitante: o menu da conta (js/accountMenu.js) mostra o botão "Entrar".
+  if (!container || !user || user.isGuest) return;
   const avatar = document.createElement("img");
   avatar.src = /^(https:\/\/|assets\/)/i.test(user.avatar || "")
     ? user.avatar

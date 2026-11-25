@@ -7,6 +7,17 @@ function isoDate(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
+// Destaques do carrossel da Home: os indicados a Jogo do Ano no The Game Awards 2026.
+// Para trocar, basta mudar esta lista (o "slug" é o final do endereço do jogo na RAWG).
+export const HERO_SLIDES = [
+  { slug: 'grand-theft-aito-vi', tag: 'Indicado a Jogo do Ano 2026' },
+  { slug: 'resident-evil-9-requiem', tag: 'Indicado a Jogo do Ano 2026' },
+  { slug: '007-first-light', tag: 'Indicado a Jogo do Ano 2026' },
+  { slug: 'control-resonant', tag: 'Indicado a Jogo do Ano 2026' },
+  { slug: 'phantom-blade-zero', tag: 'Indicado a Jogo do Ano 2026' },
+  { slug: 'the-legend-of-zelda-ocarina-of-time-2', tag: 'Indicado a Jogo do Ano 2026' }
+];
+
 // exclude_additions tira DLCs e expansões ("Blood and Wine", "Hearts of Stone"…).
 // metacritic 75+ garante jogos reconhecidos, em vez de jogos com nota alta mas só 5 votos.
 export function homeQueries(today = new Date()) {

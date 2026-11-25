@@ -1,4 +1,11 @@
 export const DESCRIPTION_BY_SLUG = {
+  // Indicados a Jogo do Ano 2026 (carrossel da Home)
+  'grand-theft-aito-vi': 'Grand Theft Auto VI leva a série de volta ao estado de Leonida, inspirado na Flórida, com a dupla Jason e Lucia em um mundo aberto enorme e cheio de vida.',
+  'resident-evil-9-requiem': 'Resident Evil Requiem é o novo capítulo principal da série de survival horror da Capcom, com tensão constante, recursos escassos e muito suspense.',
+  '007-first-light': '007 First Light, dos criadores de Hitman, conta a origem de James Bond em uma aventura de espionagem, ação e infiltração.',
+  'control-resonant': 'Control Resonant é a nova aventura da Remedy no universo sobrenatural de Control, com poderes, mistério e ambientes que mudam o tempo todo.',
+  'phantom-blade-zero': 'Phantom Blade Zero é um jogo de ação com combates de espada rápidos e estilosos, inspirado em filmes de artes marciais.',
+  'the-legend-of-zelda-ocarina-of-time-2': 'A nova versão de The Legend of Zelda: Ocarina of Time traz de volta um dos jogos mais aclamados da história, com Link viajando no tempo para salvar Hyrule.',
   'persona-5-royal': 'Persona 5 Royal é um JRPG cinematográfico sobre um grupo de estudantes que vivem uma dupla vida, enfrentando sombras e reconstruindo a cidade com estilo, humor e emoção.',
   'metaphor-refantazio': 'Metaphor: ReFantazio é uma aventura de fantasia com tom épico, personagens marcantes e um sistema de combate refinado que une narrativa e estratégia.',
   'the-legend-of-zelda-breath-of-the-wild': 'The Legend of Zelda: Breath of the Wild redefine a exploração com um mundo aberto livre, puzzles inteligentes e uma sensação de descoberta inesgotável.',

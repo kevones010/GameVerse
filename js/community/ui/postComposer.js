@@ -1,4 +1,5 @@
 import { createGamePicker } from "./gamePicker.js";
+import { loginUrl } from "../../services/auth/accountStore.js";
 import { POST_TYPE_LABELS } from "../../services/community/postTypes.js";
 
 const POST_TYPE_OPTIONS = Object.entries(POST_TYPE_LABELS).map(([value, label]) => ({ value, label }));
@@ -359,7 +360,13 @@ export function createPostComposer({ service, onSaved, onError }) {
   });
 
   return {
-    openCreate(trigger, game = null, preset = null) {
+    // Sem conta, leva para o login (e volta para esta página depois).
+    async openCreate(trigger, game = null, preset = null) {
+      const user = await service.getCurrentUser().catch(() => null);
+      if (user?.isGuest) {
+        location.href = loginUrl();
+        return undefined;
+      }
       return open(null, trigger, game, preset);
     },
     openEdit(post, trigger) {

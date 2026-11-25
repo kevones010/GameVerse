@@ -1,3 +1,4 @@
+import { accountStore } from "../../services/auth/accountStore.js";
 import { CommunityService } from "../../services/community/communityService.js";
 import { CommunitySession } from "../../services/community/communitySession.js";
 import { LocalCommunityRepository } from "../../services/community/localCommunityRepository.js";
@@ -8,7 +9,7 @@ export async function renderGameCommunityPreview(section, gameId) {
   const id = normalizeGameId(gameId);
   if (id === null) throw new Error("Jogo inválido.");
   const repository = new LocalCommunityRepository();
-  const service = new CommunityService(repository, new CommunitySession(repository));
+  const service = new CommunityService(repository, new CommunitySession(repository, accountStore()));
   // Same ordering as the Hub, paginated by the service before rendering.
   const result = await service.listPostsByGame(id, { tab: "trending", limit: 3 });
   const container = section.querySelector("#gameCommunityPosts");

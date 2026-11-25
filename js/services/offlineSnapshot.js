@@ -119,7 +119,7 @@ function loadResolver() {
   if (!resolverPromise) {
     resolverPromise = fetch(SNAPSHOT_URL, { cache: 'no-cache' })
       .then((response) => (response.ok ? response.json() : null))
-      .then((snapshot) => (snapshot ? { resolve: createOfflineResolver(snapshot), createdAt: snapshot.createdAt } : null))
+      .then((snapshot) => (snapshot ? { resolve: createOfflineResolver(snapshot), createdAt: snapshot.createdAt, snapshot } : null))
       .catch(() => null);
   }
   return resolverPromise;
@@ -158,4 +158,12 @@ export async function offlineResponse(endpoint, params) {
   const data = loaded.resolve(endpoint, params);
   if (data) showBanner(loaded.createdAt);
   return data;
+}
+
+// Partes extras da cópia que não são da RAWG (ex.: 'prices', 'deals', 'usdBrl' da CheapShark).
+export async function offlineExtra(key) {
+  const loaded = await loadResolver();
+  const value = loaded?.snapshot?.[key];
+  // Sem aviso geral aqui: quem usa mostra a data dos dados salvos (ex.: "preços de 20/11").
+  return value === undefined ? null : value;
 }

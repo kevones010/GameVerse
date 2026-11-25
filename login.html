@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GameVerse | Entrar</title>
+    <link rel="icon" href="assets/brand/vee-favicon.png" type="image/png" />
+    <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="css/header-search.css" />
+    <link rel="stylesheet" href="css/accessibility.css" />
+    <link rel="stylesheet" href="css/account.css" />
+    <script src="js/a11y-boot.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <nav class="navbar">
+          <a href="index.html" class="brand">
+            <span class="brand-mark"><img src="assets/brand/vee-logo-head.png" alt="Vee, mascote do GameVerse" /></span>
+            <span>GameVerse</span>
+          </a>
+          <div class="nav-actions">
+            <a href="index.html" class="nav-btn">Home</a>
+            <a href="categorias.html" class="nav-btn">Categorias</a>
+            <a href="comunidade.html" class="nav-btn">Comunidade</a>
+            <a href="favoritos.html" class="nav-btn">Coleção</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="auth-page">
+        <section class="auth-card" aria-labelledby="authTitle">
+          <div class="auth-side" aria-hidden="true">
+            <img src="assets/brand/vee-standing.png" alt="" />
+            <p>Publique análises, guias e enquetes, siga outros jogadores e monte sua vitrine.</p>
+          </div>
+
+          <div class="auth-main">
+            <h1 id="authTitle">Bem-vindo ao GameVerse</h1>
+
+            <div class="auth-tabs" role="tablist" aria-label="Entrar ou criar conta">
+              <button type="button" role="tab" id="tabLogin" aria-controls="loginForm" aria-selected="true">Entrar</button>
+              <button type="button" role="tab" id="tabRegister" aria-controls="registerForm" aria-selected="false" tabindex="-1">Criar conta</button>
+            </div>
+
+            <form id="loginForm" class="auth-form" role="tabpanel" aria-labelledby="tabLogin" novalidate>
+              <label for="loginUsername">Usuário</label>
+              <input id="loginUsername" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+              <label for="loginPassword">Senha</label>
+              <div class="password-field">
+                <input id="loginPassword" name="password" type="password" autocomplete="current-password" required />
+                <button type="button" class="password-toggle" aria-controls="loginPassword" aria-pressed="false">Mostrar</button>
+              </div>
+              <p class="auth-error" role="alert"></p>
+              <button type="submit" class="btn btn-primary">Entrar</button>
+            </form>
+
+            <form id="registerForm" class="auth-form" role="tabpanel" aria-labelledby="tabRegister" novalidate hidden>
+              <label for="registerName">Nome de exibição</label>
+              <input id="registerName" name="displayName" autocomplete="nickname" maxlength="40" required />
+              <label for="registerUsername">Usuário <span class="auth-hint">(3 a 20: letras minúsculas, números, _ ou .)</span></label>
+              <input id="registerUsername" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required />
+              <label for="registerPassword">Senha <span class="auth-hint">(mínimo 6 caracteres)</span></label>
+              <div class="password-field">
+                <input id="registerPassword" name="password" type="password" autocomplete="new-password" required />
+                <button type="button" class="password-toggle" aria-controls="registerPassword" aria-pressed="false">Mostrar</button>
+              </div>
+              <label for="registerConfirm">Confirmar senha</label>
+              <input id="registerConfirm" name="confirmPassword" type="password" autocomplete="new-password" required />
+              <p class="auth-error" role="alert"></p>
+              <button type="submit" class="btn btn-primary">Criar conta</button>
+            </form>
+
+            <div class="auth-divider"><span>ou</span></div>
+            <button type="button" class="btn btn-secondary auth-demo" id="demoLogin">🎮 Entrar com a conta de demonstração (VeeMaster)</button>
+
+            <p class="auth-note">🔒 As contas ficam salvas <strong>só neste navegador</strong> (é um projeto local, sem servidor).
+              A senha é guardada protegida (hash PBKDF2), mas não use a mesma senha de outros sites.</p>
+            <p class="auth-note"><a href="index.html" id="skipLogin">Continuar sem conta</a></p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="js/login.js"></script>
+    <script type="module" src="js/motion.js"></script>
+    <script type="module" src="js/headerSearch.js"></script>
+    <script type="module" src="js/accessibility.js"></script>
+  </body>
+</html>

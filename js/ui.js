@@ -4,6 +4,7 @@ import { navigateWithVee } from "./motion.js";
 import { readFavorites, readRating, readAnalysis, writePersonalData, removePersonalData } from "./services/gameStorage.js";
 import { translateToPortuguese } from "./services/translationService.js";
 import { GAME_STATUSES, getGameStatus, setGameStatus, gameSnapshot, readCollection } from "./services/collectionStorage.js";
+import { normalizeTitle, formatUsd, brlEstimate } from "./services/priceService.js";
 
 function storageNotice(container, message) {
   let notice = container.querySelector("[data-storage-notice]");
@@ -71,10 +72,6 @@ export function renderHeader(game) {
         <a href="categorias.html" class="nav-btn">Categorias</a>
         <a href="comunidade.html" class="nav-btn">Comunidade</a>
         <a href="favoritos.html" class="nav-btn">Coleção</a>
-        <div class="profile-pill">
-          <span class="profile-avatar"><img src="assets/brand/vee-avatar-happy.webp" alt="Avatar Vee" /></span>
-          <span>Guest</span>
-        </div>
       </div>
     </nav>
     <div class="search-suggestions" id="searchSuggestions"></div>
@@ -339,15 +336,24 @@ export function renderInfo(game) {
   `;
 }
 
-export function renderPrices(stores, game = {}) {
+// Lojas da RAWG (todas as plataformas) + preços das lojas de PC (CheapShark), quando houver.
+// Primeiro chamada sem preços (loading: true); depois de novo quando eles chegam.
+export function renderPrices(stores, game = {}, { summary = null, rate = null, loading = false } = {}) {
   const prices = document.getElementById("game-prices");
   // O endpoint /stores traz só store_id + url; o nome da loja vem em game.stores.
   const urlByStoreId = new Map(stores.map((item) => [item.store_id, item.url]));
+  const sameStore = (a, b) => {
+    const x = normalizeTitle(a);
+    const y = normalizeTitle(b);
+    return Boolean(x && y) && (x.startsWith(y) || y.startsWith(x));
+  };
   const items = (game.stores || [])
     .filter((item) => item?.store?.name)
+    // Loja que já aparece com preço não precisa aparecer de novo sem preço.
+    .filter((item) => !summary?.deals.some((deal) => sameStore(deal.store, item.store.name)))
     .map((item) => ({ name: item.store.name, url: safeExternalUrl(urlByStoreId.get(item.store.id)) }));
 
-  prices.innerHTML = items.length ? items.map((item) => {
+  const storeCards = items.map((item) => {
     const content = `
           <div>
             <strong>${escapeHtml(item.name)}</strong>
@@ -357,7 +363,49 @@ export function renderPrices(stores, game = {}) {
     return item.url
       ? `<a class="price-card" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${content}</a>`
       : `<div class="price-card">${content}</div>`;
-  }).join("") : '<div class="empty-state">Nenhuma loja informada para este jogo.</div>';
+  }).join("");
+
+  let pcPrices = "";
+  if (loading) {
+    pcPrices = '<p class="price-note" role="status">Buscando preços nas lojas de PC…</p>';
+  } else if (summary) {
+    const { best, historicLow } = summary;
+    const brl = (value) => brlEstimate(value, rate);
+    const deals = summary.deals.slice(0, 6).map((deal) => `
+        <a class="price-card price-deal" href="${escapeHtml(deal.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`${deal.store}: ${formatUsd(deal.price)}${deal.savings ? `, ${deal.savings}% de desconto` : ""}`)}">
+          <div class="price-store">
+            ${deal.icon ? `<img src="${escapeHtml(deal.icon)}" alt="" width="16" height="16" loading="lazy" />` : ""}
+            <div>
+              <strong>${escapeHtml(deal.store)}</strong>
+              <span>${deal.savings ? `<s>${formatUsd(deal.retail)}</s> ` : ""}${brl(deal.price)}</span>
+            </div>
+          </div>
+          <span class="price-amount">
+            ${deal.savings ? `<span class="price-off">-${deal.savings}%</span>` : ""}
+            <span class="price-pill">${formatUsd(deal.price)}</span>
+          </span>
+        </a>`).join("");
+
+    pcPrices = `
+      <div class="price-summary">
+        <div>
+          <span class="price-label">${summary.onSale ? "🔥 Em promoção · " : ""}Melhor preço agora</span>
+          <strong class="price-value">${formatUsd(best.price)}</strong>
+          ${brl(best.price) ? `<span class="price-brl">${brl(best.price)}</span>` : ""}
+          ${best.savings ? `<span class="price-off">-${best.savings}%</span>` : ""}
+          <span class="price-where">na ${escapeHtml(best.store)}</span>
+        </div>
+        ${historicLow ? `<p class="price-low">📉 Menor preço da história: <strong>${formatUsd(historicLow.price)}</strong>${historicLow.date ? ` em ${formatDate(historicLow.date)}` : ""}</p>` : ""}
+      </div>
+      ${deals}
+      <p class="price-note">Preços em dólar das lojas de PC, via <a href="https://www.cheapshark.com" target="_blank" rel="noopener noreferrer">CheapShark</a>${summary.savedAt ? ` (salvos em ${formatDate(summary.savedAt)})` : ""}.
+      ${rate ? "O valor em reais é só uma conversão pela cotação do dia: na loja brasileira o preço pode ser diferente." : ""}</p>`;
+  }
+
+  const others = storeCards ? `${pcPrices ? '<h4 class="price-subtitle">Outras lojas</h4>' : ""}${storeCards}` : "";
+  prices.innerHTML = pcPrices || others
+    ? `${pcPrices}${others}`
+    : '<div class="empty-state">Nenhuma loja informada para este jogo.</div>';
 }
 
 function safeExternalUrl(value) {

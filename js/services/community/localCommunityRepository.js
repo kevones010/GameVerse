@@ -178,6 +178,20 @@ export class LocalCommunityRepository extends CommunityRepository {
     return users.find((user) => user.id === id) || null;
   }
 
+  async createUser(user) {
+    return this.mutateState((state) => {
+      if (state.users.some((item) => item.id === user.id)) {
+        throw new CommunityError("Esse perfil já existe.", { code: "user-exists" });
+      }
+      if (state.users.some((item) => item.handle === user.handle)) {
+        throw new CommunityError("Esse nome de usuário já está em uso na comunidade.", { code: "handle-taken" });
+      }
+      const created = clone(user);
+      state.users.push(created);
+      return created;
+    });
+  }
+
   async updateUser(userId, changes, actorId) {
     return this.mutateState((state) => {
       if (userId !== actorId) {

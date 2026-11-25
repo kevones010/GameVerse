@@ -17,6 +17,7 @@ import {
 } from "./ui.js";
 import { getGame, getScreenshots, getGameTrailers, getStores, getSearch } from "./services/rawgService.js";
 import { getSimilarGames } from "./services/similarGames.js";
+import { getGamePrices, getUsdBrlRate, normalizeTitle } from "./services/priceService.js";
 import { getYouTubeTrailer } from "./services/youtubeService.js";
 import { getQueryParam, debounce } from "./utils.js";
 import { navigateWithVee } from "./motion.js";
@@ -109,12 +110,43 @@ function setupGameSearch() {
   });
 }
 
+const REDIRECTED = Symbol("redirected");
+
+// Links da seção "Em promoção" da Home chegam como game.html?nome=Hollow%20Knight.
+// Só abre o jogo com o MESMO nome; se não achar, leva para a busca do catálogo (nunca outro jogo).
+async function resolveIdentifierByName() {
+  const name = getQueryParam("nome");
+  if (!name || getQueryParam("id") || getQueryParam("slug")) return null;
+  const results = await getSearch(name);
+  const match = results.find((game) => normalizeTitle(game.name) === normalizeTitle(name));
+  if (match) {
+    history.replaceState(null, "", `game.html?slug=${encodeURIComponent(match.slug)}`);
+    return match.slug;
+  }
+  location.replace(`categorias.html?busca=${encodeURIComponent(name)}`);
+  return REDIRECTED;
+}
+
 function resolveIdentifier() {
   const id = getQueryParam("id");
   const slug = getQueryParam("slug");
   if (id) return id;
   if (slug) return slug;
   return "persona-5-royal";
+}
+
+// Preços chegam depois da página: se a CheapShark falhar, ficam só as lojas da RAWG.
+async function loadPrices(game, stores) {
+  try {
+    const [summary, rate] = await Promise.all([
+      getGamePrices({ gameId: game.id, name: game.name, stores }),
+      getUsdBrlRate()
+    ]);
+    renderPrices(stores, game, { summary, rate });
+  } catch (error) {
+    console.warn("Preços indisponíveis.", error);
+    renderPrices(stores, game);
+  }
 }
 
 // Social imports and storage failures are isolated from the game render path.
@@ -146,7 +178,8 @@ async function loadGamePage() {
   renderSkeletons();
   renderModal();
 
-  const identifier = resolveIdentifier();
+  const identifier = await resolveIdentifierByName() || resolveIdentifier();
+  if (identifier === REDIRECTED) return;
 
   try {
     const cachedGame = getCachedValue(`game:${identifier}`);
@@ -197,7 +230,8 @@ async function loadGamePage() {
     renderTrailer(trailers, game, youtubeTrailer);
     renderScreenshots(screenshots);
     renderInfo(game);
-    renderPrices(stores, game);
+    renderPrices(stores, game, { loading: true });
+    void loadPrices(game, stores);
     renderRating(game.id, game);
     renderAnalysis(game.id);
     renderSimilar(similar.filter((item) => item.id !== game.id && item.slug !== game.slug).slice(0, 8));

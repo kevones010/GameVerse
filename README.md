@@ -23,10 +23,19 @@ O computador precisa de internet para buscar os jogos na RAWG e os trailers no Y
 - **Home** com destaque rotativo (com pausa), atalhos por gênero e plataforma, "Me surpreenda", "Em breve", "Sua coleção" e carrosséis com setas.
 - **Categorias** com filtros combinados (estilo, plataforma, época, nota Metacritic), busca, ordenação, contador e filtros salvos no endereço da página.
 - **Página de cada jogo** (`game.html?slug=...`): trailer (RAWG, com YouTube como reserva), capturas, lojas, nota, análise e status na coleção.
+- **Preços e promoções** das lojas de PC via [CheapShark](https://www.cheapshark.com) (em dólar, com estimativa em reais pela cotação do dia) e a seção "Em promoção" na Home.
 - **Minha coleção** (`favoritos.html`): favoritos e status *Quero jogar / Jogando / Zerado / Abandonado*, com estatísticas.
 - **Comparar jogos** (`comparar.html`): dois jogos lado a lado.
 - **Comunidade** com posts, comentários, curtidas, salvos, Game Hubs por jogo e perfis com seguidores.
 - **Busca no topo** de todas as páginas (Enter abre todos os resultados no catálogo).
+- **Contas** (`login.html`): criar conta, entrar e sair. Sem conta dá para ver tudo; publicar, curtir, comentar e seguir pede login. Tem também uma conta de demonstração (VeeMaster) para apresentar.
+
+## Contas (login local)
+
+As contas ficam salvas **só no navegador** (`localStorage`), porque o projeto roda local, sem servidor.
+A senha não é guardada: o site guarda um hash PBKDF2-SHA256 com sal aleatório (Web Crypto). Mesmo assim é um login de
+demonstração — quem usa o computador pode apagar os dados — então não use uma senha que você usa em outros sites.
+A coleção e os favoritos continuam sendo do navegador (compartilhados entre as contas).
 
 ## Acessibilidade
 

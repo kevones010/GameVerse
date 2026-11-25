@@ -1,3 +1,4 @@
+import { accountStore } from "./services/auth/accountStore.js";
 import { CommunityService } from "./services/community/communityService.js";
 import { LocalCommunityRepository } from "./services/community/localCommunityRepository.js";
 import { CommunitySession } from "./services/community/communitySession.js";
@@ -208,6 +209,7 @@ function renderFeedError(retry) {
 }
 
 function renderCurrentUser(user) {
+  if (!user || user.isGuest) return; // o menu da conta mostra "Entrar"
   const avatar = element("img");
   avatar.src = /^(https:\/\/|assets\/)/i.test(user.avatar || "")
     ? user.avatar : "assets/vee/avatars/vee-avatar-default.webp";
@@ -383,7 +385,7 @@ async function initializeCommunity() {
   try {
     if (!communityService) {
       const repository = new LocalCommunityRepository();
-      communityService = new CommunityService(repository, new CommunitySession(repository));
+      communityService = new CommunityService(repository, new CommunitySession(repository, accountStore()));
     }
     await communityService.initialize();
     currentUser = await communityService.getCurrentUser();

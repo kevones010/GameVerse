@@ -810,3 +810,28 @@ button, input { font: inherit; }
   font-size: 0.85rem;
   white-space: pre-wrap;
 }
+
+/* Seção "Em promoção" (CheapShark) */
+.card-discount {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.4rem;
+  background: #4c6b22;
+  color: #d6f5a8;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.card--deal .card-genres s { opacity: 0.8; }
+.card-deal-price {
+  color: #d6f5a8;
+  font-size: 1rem;
+}
+.section-source {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.section-source a { color: inherit; text-decoration: underline; }

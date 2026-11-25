@@ -2,14 +2,15 @@
 // Usado pela página modo-apresentacao.html (no navegador) e por tools/modo-apresentacao.mjs (Node).
 // Não sabe gravar arquivos sozinho: recebe uma função writeFile(caminhoRelativo, conteúdo).
 import { snapshotKey } from '../services/offlineSnapshot.js';
-import { homeQueries, upcomingQuery } from '../homeQueries.js';
+import { homeQueries, upcomingQuery, HERO_SLIDES } from '../homeQueries.js';
+import { CHEAPSHARK_URL, homeDealsPath, curateDeals, storesMap, steamAppIdFromStores, buildPriceSummary } from '../services/priceService.js';
 
 const BASE_URL = 'https://api.rawg.io/api';
 const CONCURRENCY = 4;
 let currentLog = console.log;
 
 // ---------- O que a Home pede (manter igual a js/home.js) ----------
-const HERO_SLUGS = ['persona-5-royal', 'metaphor-refantazio', 'the-legend-of-zelda-breath-of-the-wild', 'resident-evil-4-2023', 'super-mario-odyssey'];
+const HERO_SLUGS = HERO_SLIDES.map((slide) => slide.slug);
 const FAVORITE_NAMES = [
   'Persona 5 Royal', 'Metaphor: ReFantazio', 'The Legend of Zelda: Breath of the Wild',
   'Persona 4 Golden', 'Final Fantasy VII Remake', 'Resident Evil 4 Remake',
@@ -103,6 +104,54 @@ async function fetchImage(url, width) {
   return bytes;
 }
 
+async function cheapshark(path) {
+  const response = await fetch(`${CHEAPSHARK_URL}${path}`);
+  if (!response.ok) throw new Error(`CheapShark ${response.status}`);
+  return response.json();
+}
+
+// Preços dos jogos principais (só os que estão na Steam) + seção "Em promoção" + cotação do dólar.
+async function savePrices(snapshot, { writeFile, withImages }) {
+  const storesById = storesMap(await cheapshark('/stores'));
+  snapshot.deals = curateDeals(await cheapshark(homeDealsPath()));
+
+  const appIds = Object.entries(snapshot.stores)
+    .map(([rawgId, stores]) => [rawgId, steamAppIdFromStores(stores)])
+    .filter(([, appId]) => appId);
+  const found = (await runPool(appIds, async ([rawgId, appId]) => {
+    const [match] = await cheapshark(`/games?steamAppID=${appId}`);
+    return match?.gameID ? [rawgId, match.gameID] : null;
+  })).filter(Boolean);
+
+  snapshot.prices = {};
+  for (let index = 0; index < found.length; index += 25) {
+    const chunk = found.slice(index, index + 25);
+    const data = await cheapshark(`/games?ids=${chunk.map(([, id]) => id).join(',')}`);
+    chunk.forEach(([rawgId, id]) => {
+      const summary = buildPriceSummary(data?.[id], storesById);
+      if (summary) snapshot.prices[rawgId] = summary;
+    });
+  }
+
+  try {
+    const rate = Number((await (await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')).json())?.USDBRL?.bid);
+    if (rate > 0) snapshot.usdBrl = rate;
+  } catch {
+    // Sem cotação: o modo apresentação mostra só o preço em dólar.
+  }
+
+  if (withImages) {
+    await runPool(snapshot.deals, async (deal) => {
+      const response = await fetch(deal.image);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!response.ok || !bytes.length) throw new Error(`capa da promoção ${response.status}`);
+      await writeFile(`assets/offline/deal-${deal.steamAppID}.jpg`, bytes);
+      deal.image = `assets/offline/deal-${deal.steamAppID}.jpg`;
+    });
+  }
+  currentLog(`  ${Object.keys(snapshot.prices).length} jogos com preço, ${snapshot.deals.length} promoções.`);
+}
+
 export async function buildSnapshot({ apiKey, writeFile, log = console.log, withImages = true }) {
   if (!apiKey) throw new Error('RAWG_API_KEY vazia em js/config.local.js.');
   currentLog = log;
@@ -186,6 +235,13 @@ export async function buildSnapshot({ apiKey, writeFile, log = console.log, with
     log(`  ${localById.size} imagens salvas em assets/offline/`);
   } else {
     log('5/5 Imagens puladas (as capas continuarão vindo da internet).');
+  }
+
+  log('Extra: preços e promoções (CheapShark)…');
+  try {
+    await savePrices(snapshot, { writeFile, withImages });
+  } catch (error) {
+    log(`  ! Preços não salvos (${error.message}). O resto da cópia continua valendo.`);
   }
 
   const json = JSON.stringify(snapshot);

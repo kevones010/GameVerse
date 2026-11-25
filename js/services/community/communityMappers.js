@@ -19,7 +19,8 @@ export function mapCommunityUser(user) {
     bio: user.bio || "",
     avatar: user.avatar || "assets/vee/avatars/vee-avatar-default.webp",
     createdAt: user.createdAt || "",
-    updatedAt: user.updatedAt || user.createdAt || ""
+    updatedAt: user.updatedAt || user.createdAt || "",
+    ...(user.isGuest ? { isGuest: true } : {})
   };
 }
 

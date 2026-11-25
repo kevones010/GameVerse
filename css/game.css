@@ -921,3 +921,66 @@ a.price-card {
   animation: synopsisSpin 0.8s linear infinite;
 }
 @keyframes synopsisSpin { to { transform: rotate(360deg); } }
+
+/* Preços das lojas de PC (CheapShark) */
+.price-summary {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(76, 107, 34, 0.28), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(164, 208, 7, 0.25);
+}
+.price-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.6rem;
+}
+.price-label {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.price-value { font-size: 1.6rem; }
+.price-brl { color: var(--muted); }
+.price-where { color: var(--muted); font-size: 0.9rem; }
+.price-off {
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.4rem;
+  background: #4c6b22;
+  color: #d6f5a8 !important;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.price-low {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.price-low strong { color: var(--text); }
+.price-store {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.price-store img { border-radius: 3px; flex: none; }
+.price-amount {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+}
+.price-deal s { opacity: 0.8; }
+.price-subtitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.price-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.price-note a { color: inherit; text-decoration: underline; }

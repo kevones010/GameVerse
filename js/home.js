@@ -3,8 +3,9 @@ import { escapeHtml, genreLine } from './utils.js';
 import { navigateWithVee } from './motion.js';
 import { readFavorites } from './services/gameStorage.js';
 import { readCollection, statusInfo } from './services/collectionStorage.js';
-import { homeQueries, upcomingQuery, curateGames } from './homeQueries.js';
+import { homeQueries, upcomingQuery, curateGames, HERO_SLIDES } from './homeQueries.js';
 import { DESCRIPTION_BY_SLUG } from '../data/descriptions-pt.js';
+import { getHomeDeals, getUsdBrlRate, formatUsd, brlEstimate } from './services/priceService.js';
 
 const FAVORITE_NAMES = [
   'Persona 5 Royal', 'Metaphor: ReFantazio', 'The Legend of Zelda: Breath of the Wild',
@@ -15,13 +16,6 @@ const FAVORITE_NAMES = [
   'Pokémon Black 2', 'Zelda Ocarina of Time', 'Hollow Knight', 'Resident Evil 2 Remake'
 ];
 
-const HERO_SLIDES = [
-  { slug: 'persona-5-royal', tag: 'Nova coleção' },
-  { slug: 'metaphor-refantazio', tag: 'Pré-lançamento' },
-  { slug: 'the-legend-of-zelda-breath-of-the-wild', tag: 'Clássico' },
-  { slug: 'resident-evil-4-2023', tag: 'Terror premium' },
-  { slug: 'super-mario-odyssey', tag: 'Família' }
-];
 
 let heroIntervalId = null;
 let heroCurrentIndex = 0;
@@ -68,6 +62,50 @@ function renderCollectionRow(section) {
   renderSection(section, '📚 Sua coleção', 'Continue de onde parou', games, { moreHref: 'favoritos.html', variant: 'collection' });
 }
 
+// Card de promoção: leva para a página do jogo pelo nome (a página confere se é o mesmo jogo).
+function createDealCardMarkup(deal, rate) {
+  const brl = brlEstimate(deal.salePrice, rate);
+  return `
+    <article class="card card--deal" data-name="${escapeHtml(deal.title)}">
+      <div class="card-media">
+        <img src="${escapeHtml(deal.image)}" alt="${escapeHtml(deal.title)}" loading="lazy" data-fallback="${escapeHtml(deal.fallbackImage || '')}" />
+        <span class="card-discount">-${deal.savings}%</span>
+        ${deal.metacritic > 0 ? `<span class="card-metacritic" title="Nota Metacritic">${deal.metacritic}</span>` : ''}
+      </div>
+      <div class="card-body">
+        <h3>${escapeHtml(deal.title)}</h3>
+        <p class="card-genres">De <s>${formatUsd(deal.normalPrice)}</s> na Steam</p>
+        <div class="meta">
+          <span>${brl || '&nbsp;'}</span>
+          <strong class="card-deal-price">${formatUsd(deal.salePrice)}</strong>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+// Seção "Em promoção": carrega à parte, para a CheapShark lenta não segurar o resto da Home.
+async function renderDeals(section) {
+  renderSkeleton(section);
+  const [deals, rate] = await Promise.all([getHomeDeals(), getUsdBrlRate()]);
+  if (!deals.length) {
+    section.hidden = true;
+    return;
+  }
+  const savedAt = deals[0].savedAt ? ` · preços salvos em ${new Date(deals[0].savedAt).toLocaleDateString('pt-BR')}` : '';
+  const source = `<span class="section-source">Preços em dólar via <a href="https://www.cheapshark.com" target="_blank" rel="noopener noreferrer">CheapShark</a>${rate ? '; o valor em reais é só uma conversão pela cotação do dia' : ''}${savedAt}.</span>`;
+  renderSection(section, '🏷️ Em promoção', `Jogos bem avaliados com desconto na Steam agora. ${source}`, [], {
+    moreHref: '',
+    markup: deals.map((deal) => createDealCardMarkup(deal, rate)).join(''),
+    onCardClick: (card) => navigateWithVee(`game.html?nome=${encodeURIComponent(card.dataset.name)}`)
+  });
+  section.querySelectorAll('img[data-fallback]').forEach((img) => {
+    img.addEventListener('error', () => {
+      if (img.dataset.fallback && img.src !== img.dataset.fallback) img.src = img.dataset.fallback;
+    }, { once: true });
+  });
+}
+
 function createCardMarkup(game, variant = 'default') {
   let year = game.released ? game.released.slice(0, 4) : '—';
   let rating = game.rating ? `${game.rating.toFixed(1)} ★` : 'Sem nota';
@@ -97,11 +135,11 @@ function createCardMarkup(game, variant = 'default') {
   `;
 }
 
-function renderSection(section, title, subtitle, games, { moreHref = 'categorias.html', variant = 'default' } = {}) {
+function renderSection(section, title, subtitle, games, { moreHref = 'categorias.html', variant = 'default', markup = null, onCardClick = null } = {}) {
   const safeGames = (games || []).filter(Boolean);
-  const cardsMarkup = safeGames.length
+  const cardsMarkup = markup || (safeGames.length
     ? safeGames.map((game) => createCardMarkup(game, variant)).join('')
-    : '<div class="empty-state">Nenhum jogo encontrado para esta seção.</div>';
+    : '<div class="empty-state">Nenhum jogo encontrado para esta seção.</div>');
   const plainTitle = title.replace(/^[^\p{L}\p{N}]+/u, '');
 
   section.innerHTML = `
@@ -122,7 +160,7 @@ function renderSection(section, title, subtitle, games, { moreHref = 'categorias
   `;
 
   section.querySelectorAll('.card').forEach((card) => {
-    card.addEventListener('click', () => openGame(card.dataset.id, card.dataset.slug));
+    card.addEventListener('click', () => (onCardClick ? onCardClick(card) : openGame(card.dataset.id, card.dataset.slug)));
   });
   setupCarouselArrows(section);
 }
@@ -407,6 +445,10 @@ async function renderHome() {
 
   renderShortcuts(shortcuts);
   renderCollectionRow(document.getElementById('collectionRow'));
+  void renderDeals(document.getElementById('deals')).catch((error) => {
+    console.warn('Seção de promoções indisponível.', error);
+    document.getElementById('deals').hidden = true;
+  });
   renderSkeleton(hero, 'hero');
   renderSkeleton(upcoming);
   renderSkeleton(launches);
@@ -421,7 +463,11 @@ async function renderHome() {
   try {
     const queries = homeQueries();
     const [heroGames, launchGames, upcomingGames, trendingGames, topRatedGames, developerGames, rpgGames, actionGames, adventureGames, indieGames] = await Promise.all([
-      Promise.all(HERO_SLIDES.map(async (slide) => getGame(slide.slug))),
+      // Se um destaque falhar, os outros continuam aparecendo.
+      Promise.allSettled(HERO_SLIDES.map((slide) => getGame(slide.slug)))
+        .then((results) => results
+          .map((result, index) => (result.status === 'fulfilled' ? { ...result.value, tag: HERO_SLIDES[index].tag } : null))
+          .filter(Boolean)),
       fetchGames(queries.launches).then((games) => curateGames(games, { minRatings: 10 })),
       fetchUpcomingGames(),
       fetchGames(queries.trending).then((games) => curateGames(games, { sort: 'none' })),
@@ -433,7 +479,7 @@ async function renderHome() {
       fetchGames(queries.indie).then((games) => curateGames(games))
     ]);
 
-    startHeroSlider(heroGames.map((game, index) => ({ ...game, tag: HERO_SLIDES[index].tag })));
+    startHeroSlider(heroGames);
 
     renderSection(launches, '🔥 Lançamentos relevantes', 'Novidades recentes com maior impacto', launchGames, { moreHref: 'categorias.html?ordem=-released' });
     renderSection(upcoming, '📅 Em breve', 'Os próximos lançamentos mais aguardados', upcomingGames, { moreHref: '', variant: 'upcoming' });

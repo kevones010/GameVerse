@@ -97,6 +97,15 @@ export class CommunityService {
     return user;
   }
 
+  // Ações que mudam algo (publicar, curtir, comentar, seguir…) precisam de uma conta.
+  async requireMember() {
+    const user = await this.requireCurrentUser();
+    if (user.isGuest) {
+      throw new CommunityError("Entre na sua conta para publicar, curtir, comentar e seguir pessoas.", { code: "login-required" });
+    }
+    return user;
+  }
+
   async interactionContext(userId) {
     const [likes, savedPosts, reactions, pollVotes] = await Promise.all([
       this.repository.listLikesByUser(userId),
@@ -324,7 +333,7 @@ export class CommunityService {
 
   async updateCurrentUserProfile(input) {
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     const normalized = validateProfile(input);
     const updated = await this.repository.updateUser(currentUser.id, {
       ...normalized,
@@ -335,7 +344,7 @@ export class CommunityService {
 
   async toggleFollow(userId) {
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     if (!userId || userId === currentUser.id) {
       throw new CommunityError("Você não pode seguir o próprio perfil.", { code: "cannot-follow-self" });
     }
@@ -388,7 +397,7 @@ export class CommunityService {
 
   async createReport(input) {
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     const normalized = validateReport(input);
     const report = await this.repository.createReport({
       id: createId("report"),
@@ -429,7 +438,7 @@ export class CommunityService {
 
   async createPost(input) {
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     const normalized = validatePost(input);
     const now = new Date().toISOString();
     const post = await this.repository.createPost({
@@ -450,7 +459,7 @@ export class CommunityService {
   async updatePost(postId, input) {
     await this.initialize();
     const [currentUser, existingPost] = await Promise.all([
-      this.requireCurrentUser(),
+      this.requireMember(),
       this.repository.getPostById(postId)
     ]);
     if (!this.canEditPost(existingPost, currentUser)) {
@@ -471,7 +480,7 @@ export class CommunityService {
   async deletePost(postId) {
     await this.initialize();
     const [currentUser, post] = await Promise.all([
-      this.requireCurrentUser(),
+      this.requireMember(),
       this.repository.getPostById(postId)
     ]);
     if (!this.canDeletePost(post, currentUser)) {
@@ -482,7 +491,7 @@ export class CommunityService {
 
   async toggleLike(postId) {
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     return this.repository.toggleLike(postId, currentUser.id, {
       id: createId("like"),
       createdAt: new Date().toISOString()
@@ -492,7 +501,7 @@ export class CommunityService {
   async toggleReaction(postId, emoji) {
     if (!REACTIONS.includes(emoji)) throw new CommunityError("Reação inválida.", { code: "invalid-reaction" });
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     return this.repository.toggleReaction(postId, currentUser.id, emoji, {
       id: createId("reaction"),
       createdAt: new Date().toISOString()
@@ -503,7 +512,7 @@ export class CommunityService {
     const index = Number(optionIndex);
     if (!Number.isInteger(index) || index < 0) throw new CommunityError("Opção de enquete inválida.", { code: "invalid-poll-option" });
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     return this.repository.votePoll(postId, currentUser.id, index, {
       id: createId("vote"),
       createdAt: new Date().toISOString()
@@ -565,7 +574,7 @@ export class CommunityService {
 
   async toggleSaved(postId) {
     await this.initialize();
-    const currentUser = await this.requireCurrentUser();
+    const currentUser = await this.requireMember();
     return this.repository.toggleSaved(postId, currentUser.id, {
       id: createId("saved"),
       createdAt: new Date().toISOString()
@@ -596,7 +605,7 @@ export class CommunityService {
   async createComment(postId, input) {
     await this.initialize();
     const [currentUser, post] = await Promise.all([
-      this.requireCurrentUser(),
+      this.requireMember(),
       this.repository.getPostById(postId)
     ]);
     if (!post || post.status !== "published") {
@@ -624,7 +633,7 @@ export class CommunityService {
   async deleteComment(commentId) {
     await this.initialize();
     const [currentUser, comment] = await Promise.all([
-      this.requireCurrentUser(),
+      this.requireMember(),
       this.repository.getCommentById(commentId)
     ]);
     if (!this.canDeleteComment(comment, currentUser)) {

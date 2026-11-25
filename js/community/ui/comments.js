@@ -1,3 +1,4 @@
+import { loginUrl } from "../../services/auth/accountStore.js";
 import { createSpoilerContent } from "./spoilerContent.js";
 
 function safeAvatarUrl(value) {
@@ -133,6 +134,15 @@ export function createCommentsSection({
   }
 
   function createCommentForm() {
+    if (currentUser?.isGuest) {
+      const invite = document.createElement("p");
+      invite.className = "comment-login";
+      const link = document.createElement("a");
+      link.href = loginUrl();
+      link.textContent = "Entre na sua conta";
+      invite.append(link, " para comentar.");
+      return invite;
+    }
     const form = document.createElement("form");
     form.className = "comment-form";
     form.noValidate = true;

@@ -9,6 +9,7 @@ export class CommunityRepository {
   async deletePost() { throw NOT_IMPLEMENTED("deletePost"); }
   async listUsers() { throw NOT_IMPLEMENTED("listUsers"); }
   async getUserById() { throw NOT_IMPLEMENTED("getUserById"); }
+  async createUser() { throw NOT_IMPLEMENTED("createUser"); }
   async updateUser() { throw NOT_IMPLEMENTED("updateUser"); }
   async listComments() { throw NOT_IMPLEMENTED("listComments"); }
   async getCommentById() { throw NOT_IMPLEMENTED("getCommentById"); }
